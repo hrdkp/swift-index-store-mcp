@@ -1,4 +1,5 @@
 import Testing
+
 @testable import IndexStoreMCP
 
 @Test func example() async throws {
