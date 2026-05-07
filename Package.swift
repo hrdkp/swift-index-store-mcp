@@ -1,22 +1,21 @@
-// swift-tools-version: 6.2
-// The swift-tools-version declares the minimum version of Swift required to build this package.
-
+// swift-tools-version: 5.9
 import PackageDescription
 
 let package = Package(
     name: "IndexStoreMCP",
-    products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
-        .library(
-            name: "IndexStoreMCP",
-            targets: ["IndexStoreMCP"]
-        ),
+    platforms: [.macOS(.v14)],
+    dependencies: [
+        .package(url: "https://github.com/modelcontextprotocol/swift-sdk", from: "0.9.0"),
+        .package(url: "https://github.com/swiftlang/indexstore-db", branch: "main"),
     ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
-        .target(
-            name: "IndexStoreMCP"
+        .executableTarget(
+            name: "IndexStoreMCP",
+            dependencies: [
+                .product(name: "MCP", package: "swift-sdk"),
+                .product(name: "IndexStoreDB", package: "indexstore-db"),
+            ],
+            path: "Sources/IndexStoreMCP"
         ),
         .testTarget(
             name: "IndexStoreMCPTests",
