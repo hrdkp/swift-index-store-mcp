@@ -72,8 +72,11 @@ func handleLoadIndex(_ args: [String: Value], indexStore: IndexStore) async thro
             return String(data: data, encoding: .utf8) ?? ""
         }()
         
-        let libPath = developerPath.trimmingCharacters(in: .whitespacesAndNewlines)
-        + "/../SharedFrameworks/IndexStore.framework/Versions/A/IndexStore"
+        let devPath = developerPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Try the toolchain location first, then fall back to the SharedFrameworks location
+        let toolchainLib = devPath + "/Toolchains/XcodeDefault.xctoolchain/usr/lib/libIndexStore.dylib"
+        let sharedFrameworkLib = devPath + "/../SharedFrameworks/IndexStore.framework/Versions/A/IndexStore"
+        let libPath = FileManager.default.fileExists(atPath: toolchainLib) ? toolchainLib : sharedFrameworkLib
         let library = try? IndexStoreLibrary(dylibPath: libPath)
         
         // 6. Initialise IndexStoreDB
