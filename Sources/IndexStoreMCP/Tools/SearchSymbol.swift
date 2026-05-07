@@ -18,12 +18,16 @@ func handleSearchSymbol(_ args: [String: Value], indexStore: IndexStore) async t
     }
     
     let items: [[String: String]] = occurrences.map { occurrence in
-        [
+        var dict: [String: String] = [
             "usr":      occurrence.symbol.usr,
             "name":     occurrence.symbol.name,
             "kind":     String(describing: occurrence.symbol.kind),
-            "location": occurrence.location.path + ":" + String(occurrence.location.line)
+            "location": occurrence.location.path + ":" + String(occurrence.location.line),
         ]
+        if occurrence.symbol.subKind != .none {
+            dict["subKind"] = String(describing: occurrence.symbol.subKind)
+        }
+        return dict
     }
     
     let data = try JSONSerialization.data(withJSONObject: items, options: .prettyPrinted)
