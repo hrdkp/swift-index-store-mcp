@@ -23,11 +23,15 @@ func handleSymbolAtPosition(_ args: [String: Value], indexStore: IndexStore) asy
     }
     
     let items: [[String: String]] = atLine.map { occurrence in
-        [
+        var dict: [String: String] = [
             "usr":  occurrence.symbol.usr,
             "name": occurrence.symbol.name,
-            "kind": String(describing: occurrence.symbol.kind)
+            "kind": String(describing: occurrence.symbol.kind),
         ]
+        if occurrence.symbol.subKind != .none {
+            dict["subKind"] = String(describing: occurrence.symbol.subKind)
+        }
+        return dict
     }
     
     let data = try JSONSerialization.data(withJSONObject: items, options: .prettyPrinted)

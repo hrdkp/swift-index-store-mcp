@@ -21,19 +21,24 @@ func handleGetOccurrences(_ args: [String: Value], indexStore: IndexStore) async
     }
     
     let includeSystem = args["includeSystem"]?.boolValue ?? false
-
+    
     let all = database.occurrences(ofUSR: usr, roles: roles)
     let results = all
         .filter { includeSystem || !$0.location.isSystem }
         .sorted { ($0.location.path, $0.location.line) < ($1.location.path, $1.location.line) }
-
+    
     let occurrenceList: [[String: Any]] = results.map { occurrence in
         var dict: [String: Any] = [
             "file":   occurrence.location.path,
             "line":   occurrence.location.line,
             "column": occurrence.location.utf8Column,
             "role":   String(describing: occurrence.roles),
+            "name":   occurrence.symbol.name,
+            "kind":   String(describing: occurrence.symbol.kind),
         ]
+        if occurrence.symbol.subKind != .none {
+            dict["subKind"] = String(describing: occurrence.symbol.subKind)
+        }
         if !occurrence.relations.isEmpty {
             dict["relations"] = occurrence.relations.map { relation in
                 [
@@ -46,12 +51,12 @@ func handleGetOccurrences(_ args: [String: Value], indexStore: IndexStore) async
         }
         return dict
     }
-
+    
     var output = (String(data: try JSONSerialization.data(withJSONObject: occurrenceList, options: .prettyPrinted), encoding: .utf8) ?? "[]")
     let systemCount = all.count - results.count
     if systemCount > 0 {
         output += "\n\nNote: \(systemCount) system framework occurrence(s) excluded. Pass includeSystem: true to include them."
     }
-
+    
     return CallTool.Result(content: [.text(text: output, annotations: nil, _meta: nil)], isError: false)
 }
