@@ -20,12 +20,14 @@ func handleRelatedOccurrences(_ args: [String: Value], indexStore: IndexStore) a
         )
     }
     
-    let results = database.occurrences(relatedToUSR: usr, roles: roles)
-    let sorted = results.sorted {
-        ($0.location.path, $0.location.line) < ($1.location.path, $1.location.line)
-    }
-    
-    let dicts: [[String: String]] = sorted.map { occurrence in
+    let includeSystem = args["includeSystem"]?.boolValue ?? false
+
+    let all = database.occurrences(relatedToUSR: usr, roles: roles)
+    let results = all
+        .filter { includeSystem || !$0.location.isSystem }
+        .sorted { ($0.location.path, $0.location.line) < ($1.location.path, $1.location.line) }
+
+    let dicts: [[String: String]] = results.map { occurrence in
         [
             "file":   occurrence.location.path,
             "line":   String(occurrence.location.line),
@@ -33,9 +35,12 @@ func handleRelatedOccurrences(_ args: [String: Value], indexStore: IndexStore) a
             "role":   String(describing: occurrence.roles)
         ]
     }
-    
-    let data = try JSONSerialization.data(withJSONObject: dicts, options: .prettyPrinted)
-    let json = String(data: data, encoding: .utf8) ?? "[]"
-    
-    return CallTool.Result(content: [.text(text: json, annotations: nil, _meta: nil)], isError: false)
+
+    var output = (String(data: try JSONSerialization.data(withJSONObject: dicts, options: .prettyPrinted), encoding: .utf8) ?? "[]")
+    let systemCount = all.count - results.count
+    if systemCount > 0 {
+        output += "\n\nNote: \(systemCount) system framework occurrence(s) excluded. Pass includeSystem: true to include them."
+    }
+
+    return CallTool.Result(content: [.text(text: output, annotations: nil, _meta: nil)], isError: false)
 }

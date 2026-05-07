@@ -65,6 +65,10 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                                 "items": .object(["type": .string("string")]),
                                 "description": .string("Optional role filter: definition, reference, call, override, etc. Defaults to all roles."),
                             ]),
+                            "includeSystem": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include occurrences in system frameworks (UIKit, Foundation, etc.). Defaults to false."),
+                            ]),
                         ]),
                         "required": .array([.string("usr")]),
                     ])
@@ -84,6 +88,10 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                                 "items": .object(["type": .string("string")]),
                                 "description": .string("Optional relation filter: overrideOf, baseOf, extendedBy, ibTypeOf, specializationOf, etc. Defaults to all relation roles."),
                             ]),
+                            "includeSystem": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include occurrences in system frameworks (UIKit, Foundation, etc.). Defaults to false."),
+                            ]),
                         ]),
                         "required": .array([.string("usr")]),
                     ])
@@ -102,6 +110,10 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                                 "type": .string("array"),
                                 "items": .object(["type": .string("string")]),
                                 "description": .string("Optional role filter. Defaults to definition only."),
+                            ]),
+                            "includeSystem": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include occurrences in system frameworks (UIKit, Foundation, etc.). Defaults to false."),
                             ]),
                         ]),
                         "required": .array([.string("file")]),

@@ -20,10 +20,13 @@ func handleSymbolsInFile(_ args: [String: Value], indexStore: IndexStore) async 
         )
     }
     
+    let includeSystem = args["includeSystem"]?.boolValue ?? false
+
     let all = database.symbolOccurrences(inFilePath: file)
-    let filtered = all.filter { !$0.roles.intersection(roles).isEmpty }
-    let sorted = filtered.sorted { $0.location.line < $1.location.line }
-    
+    let roleFiltered = all.filter { !$0.roles.intersection(roles).isEmpty }
+    let results = roleFiltered.filter { includeSystem || !$0.location.isSystem }
+    let sorted = results.sorted { $0.location.line < $1.location.line }
+
     let items: [[String: String]] = sorted.map { occurrence in
         [
             "name":   occurrence.symbol.name,
@@ -34,9 +37,12 @@ func handleSymbolsInFile(_ args: [String: Value], indexStore: IndexStore) async 
             "role":   String(describing: occurrence.roles)
         ]
     }
-    
-    let data = try JSONSerialization.data(withJSONObject: items, options: .prettyPrinted)
-    let text = String(decoding: data, as: UTF8.self)
-    
-    return CallTool.Result(content: [.text(text: text, annotations: nil, _meta: nil)], isError: false)
+
+    var output = String(decoding: try JSONSerialization.data(withJSONObject: items, options: .prettyPrinted), as: UTF8.self)
+    let systemCount = roleFiltered.count - results.count
+    if systemCount > 0 {
+        output += "\n\nNote: \(systemCount) system framework occurrence(s) excluded. Pass includeSystem: true to include them."
+    }
+
+    return CallTool.Result(content: [.text(text: output, annotations: nil, _meta: nil)], isError: false)
 }
