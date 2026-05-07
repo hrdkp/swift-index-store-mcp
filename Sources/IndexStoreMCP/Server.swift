@@ -82,7 +82,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                             "roles": .object([
                                 "type": .string("array"),
                                 "items": .object(["type": .string("string")]),
-                                "description": .string("Optional relation filter: overrideOf, baseOf, conformsTo, extendedBy, etc. Defaults to all relation roles."),
+                                "description": .string("Optional relation filter: overrideOf, baseOf, extendedBy, ibTypeOf, specializationOf, etc. Defaults to all relation roles."),
                             ]),
                         ]),
                         "required": .array([.string("usr")]),

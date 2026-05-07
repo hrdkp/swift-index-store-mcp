@@ -12,7 +12,13 @@ func handleRelatedOccurrences(_ args: [String: Value], indexStore: IndexStore) a
     }
     
     let roleStrings = args["roles"]?.arrayValue?.compactMap { $0.stringValue } ?? []
-    let roles = symbolRole(from: roleStrings, defaultRole: .all)
+    let (roles, unknownRoles) = symbolRole(from: roleStrings, defaultRole: .all)
+    if !unknownRoles.isEmpty {
+        return CallTool.Result(
+            content: [.text(text: "Unknown role(s): \(unknownRoles.joined(separator: ", ")). Valid roles: declaration, definition, reference, read, write, call, dynamic, addressOf, implicit, childOf, baseOf, overrideOf, receivedBy, calledBy, extendedBy, accessorOf, containedBy, ibTypeOf, specializationOf, canonical", annotations: nil, _meta: nil)],
+            isError: true
+        )
+    }
     
     let results = database.occurrences(relatedToUSR: usr, roles: roles)
     let sorted = results.sorted {
