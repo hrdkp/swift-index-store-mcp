@@ -27,13 +27,24 @@ func handleRelatedOccurrences(_ args: [String: Value], indexStore: IndexStore) a
         .filter { includeSystem || !$0.location.isSystem }
         .sorted { ($0.location.path, $0.location.line) < ($1.location.path, $1.location.line) }
 
-    let dicts: [[String: String]] = results.map { occurrence in
-        [
+    let dicts: [[String: Any]] = results.map { occurrence in
+        var dict: [String: Any] = [
             "file":   occurrence.location.path,
-            "line":   String(occurrence.location.line),
-            "column": String(occurrence.location.utf8Column),
-            "role":   String(describing: occurrence.roles)
+            "line":   occurrence.location.line,
+            "column": occurrence.location.utf8Column,
+            "role":   String(describing: occurrence.roles),
         ]
+        if !occurrence.relations.isEmpty {
+            dict["relations"] = occurrence.relations.map { relation in
+                [
+                    "usr":  relation.symbol.usr,
+                    "name": relation.symbol.name,
+                    "kind": String(describing: relation.symbol.kind),
+                    "role": String(describing: relation.roles),
+                ]
+            }
+        }
+        return dict
     }
 
     var output = (String(data: try JSONSerialization.data(withJSONObject: dicts, options: .prettyPrinted), encoding: .utf8) ?? "[]")
