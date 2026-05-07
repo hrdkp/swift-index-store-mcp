@@ -46,7 +46,7 @@ func handleLoadIndex(_ args: [String: Value], indexStore: IndexStore) async thro
             databasePath: dbURL.path,
             library: library,
             waitUntilDoneInitializing: true,
-            listenToUnitEvents: false
+            listenToUnitEvents: true
         )
         
         await indexStore.setDatabase(db, workspacePath: workspacePath)
