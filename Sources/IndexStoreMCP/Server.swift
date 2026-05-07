@@ -33,6 +33,40 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                     ])
                 ),
                 Tool(
+                    name: "searchSymbolPattern",
+                    description: "Use when searchSymbol returns no results or you only know a partial name. Performs subsequence matching — e.g. 'mvc' matches 'MyViewController', 'vdl' matches 'viewDidLoad'. Returns USRs like searchSymbol does.",
+                    inputSchema: .object([
+                        "type": .string("object"),
+                        "properties": .object([
+                            "pattern": .object([
+                                "type": .string("string"),
+                                "description": .string("Partial or full symbol name to search for. Subsequence matching is on by default: 'mvc' finds 'MyViewController'."),
+                            ]),
+                            "anchorStart": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, pattern must match from the start of the symbol name. Defaults to false."),
+                            ]),
+                            "anchorEnd": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, pattern must match to the end of the symbol name. Defaults to false."),
+                            ]),
+                            "subsequence": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, characters in pattern can match non-consecutively (CamelCase matching). Defaults to true."),
+                            ]),
+                            "ignoreCase": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, matching is case-insensitive. Defaults to true."),
+                            ]),
+                            "includeSystem": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include matches in system frameworks (UIKit, Foundation, etc.). Defaults to false."),
+                            ]),
+                        ]),
+                        "required": .array([.string("pattern")]),
+                    ])
+                ),
+                Tool(
                     name: "symbolAtPosition",
                     description: "Use when reading a file and you want the USR of a symbol at a specific line. More precise than searchSymbol when the name is ambiguous (e.g. init).",
                     inputSchema: .object([
@@ -129,6 +163,8 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
             return try await handleLoadIndex(args, indexStore: indexStore)
         case "searchSymbol":
             return try await handleSearchSymbol(args, indexStore: indexStore)
+        case "searchSymbolPattern":
+            return try await handleSearchSymbolPattern(args, indexStore: indexStore)
         case "symbolAtPosition":
             return try await handleSymbolAtPosition(args, indexStore: indexStore)
         case "getOccurrences":

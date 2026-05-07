@@ -14,7 +14,7 @@ func handleSearchSymbol(_ args: [String: Value], indexStore: IndexStore) async t
     let occurrences = database.canonicalOccurrences(ofName: name)
     
     if occurrences.isEmpty {
-        return CallTool.Result(content: [.text(text: "[]", annotations: nil, _meta: nil)], isError: false)
+        return CallTool.Result(content: [.text(text: "No exact match found for '\(name)'. If you expected a result, try searchSymbolPattern with a partial name.", annotations: nil, _meta: nil)], isError: false)
     }
     
     let items: [[String: String]] = occurrences.map { occurrence in
