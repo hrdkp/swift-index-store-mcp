@@ -11,16 +11,16 @@ func handleSearchSymbol(_ args: [String: Value], indexStore: IndexStore) async t
         return .failure("Missing required argument: name")
     }
     
-    let occurrences = database.canonicalOccurrences(ofName: name)
+    let includeSystem = args["includeSystem"]?.boolValue ?? false
     
-    if occurrences.isEmpty {
+    let all = database.canonicalOccurrences(ofName: name)
+    let results = all.filter { includeSystem || !$0.location.isSystem }
+    
+    if results.isEmpty {
         return .success("No exact match found for '\(name)'. If you expected a result, try searchSymbolPattern with a partial name.")
     }
     
-    let items: [[String: String]] = occurrences.map { $0.toCanonicalDict() }
-    
-    let data = try JSONSerialization.data(withJSONObject: items, options: .prettyPrinted)
-    let text = String(data: data, encoding: .utf8) ?? "Found \(items.count) occurrences"
-    
-    return .success(text)
+    let items: [[String: String]] = results.map { $0.toCanonicalDict() }
+    let output = try formatOccurrenceJSON(items, systemCount: all.count - results.count)
+    return .success(output)
 }

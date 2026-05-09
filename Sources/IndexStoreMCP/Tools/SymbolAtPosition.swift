@@ -15,8 +15,11 @@ func handleSymbolAtPosition(_ args: [String: Value], indexStore: IndexStore) asy
         return .failure("Missing required argument: line (must be an integer)")
     }
     
+    let includeSystem = args["includeSystem"]?.boolValue ?? false
+    
     let atLine = database.symbolOccurrences(inFilePath: file)
         .filter { $0.location.line == line }
+        .filter { includeSystem || !$0.location.isSystem }
         .sorted { $0.location.utf8Column < $1.location.utf8Column }
     
     guard !atLine.isEmpty else { return .success("[]") }

@@ -49,6 +49,10 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                                 "type": .string("string"),
                                 "description": .string("Exact symbol name as it appears in source code, e.g. viewDidLoad, MyViewController, init"),
                             ]),
+                            "includeSystem": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include matches in system frameworks (UIKit, Foundation, etc.). Defaults to false."),
+                            ]),
                         ]),
                         "required": .array([.string("name")]),
                     ])
@@ -100,6 +104,10 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                             "line": .object([
                                 "type": .string("integer"),
                                 "description": .string("1-based line number"),
+                            ]),
+                            "includeSystem": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include matches in system frameworks (UIKit, Foundation, etc.). Defaults to false."),
                             ]),
                         ]),
                         "required": .array([.string("file"), .string("line")]),
