@@ -24,6 +24,10 @@ func handleRelatedOccurrences(_ args: [String: Value], indexStore: IndexStore) a
         .filter { includeSystem || !$0.location.isSystem }
         .sorted { ($0.location.path, $0.location.line) < ($1.location.path, $1.location.line) }
     
+    if results.isEmpty && all.isEmpty {
+        return .success("No related occurrences found. This symbol may not have conformances, overrides, or extensions.")
+    }
+    
     let dicts: [[String: Any]] = results.map { $0.toDetailedDict() }
     
     let output = try formatOccurrenceJSON(dicts, systemCount: all.count - results.count)

@@ -24,6 +24,10 @@ func handleGetOccurrences(_ args: [String: Value], indexStore: IndexStore) async
         .filter { includeSystem || !$0.location.isSystem }
         .sorted { ($0.location.path, $0.location.line) < ($1.location.path, $1.location.line) }
     
+    if results.isEmpty && all.isEmpty {
+        return .success("No occurrences found for this USR. Verify the USR is correct using searchSymbol.")
+    }
+    
     let occurrenceList: [[String: Any]] = results.map { $0.toDetailedDict() }
     
     let output = try formatOccurrenceJSON(occurrenceList, systemCount: all.count - results.count)

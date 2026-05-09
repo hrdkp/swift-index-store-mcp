@@ -27,7 +27,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
             .init(tools: [
                 Tool(
                     name: ToolName.loadIndex.rawValue,
-                    description: "Must be called first with the absolute path to the .xcworkspace or .xcodeproj before any other tool. Only needs to be called once per session.",
+                    description: "Must be called first before any other tool. Loads the Xcode index for the given project. Only needs to be called once per session. Typical workflow: loadIndex → searchSymbol/searchSymbolPattern → getOccurrences/relatedOccurrences. Call refreshIndex after a build to pick up changes.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([
@@ -215,7 +215,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
         case .symbolsInFile:
             return try await handleSymbolsInFile(args, indexStore: indexStore)
         case .refreshIndex:
-            return try await handleRefreshIndex(args, indexStore: indexStore)
+            return try await handleRefreshIndex(indexStore: indexStore)
         }
     }
 }

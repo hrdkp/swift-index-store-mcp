@@ -22,8 +22,10 @@ func handleLoadIndex(_ args: [String: Value], indexStore: IndexStore) async thro
     }
     
     do {
-        guard let derivedDataDir = findDerivedDataDir(forWorkspacePath: workspacePath, fm: fm) else {
-            return .failure("No DerivedData found for this workspace. Has the project been built in Xcode?")
+        let searchBases = derivedDataSearchBases(forWorkspacePath: workspacePath)
+        guard let derivedDataDir = findDerivedDataDir(forWorkspacePath: workspacePath, searchBases: searchBases, fm: fm) else {
+            let searched = searchBases.map(\.path).joined(separator: "\n  ")
+            return .failure("No DerivedData found for this workspace. The project must be built successfully in Xcode at least once before the index is available.\nSearched:\n  \(searched)")
         }
         
         let storeURL = URL(fileURLWithPath: derivedDataDir)
@@ -85,10 +87,10 @@ private func derivedDataSearchBases(forWorkspacePath workspacePath: String) -> [
     return bases
 }
 
-private func findDerivedDataDir(forWorkspacePath workspacePath: String, fm: FileManager) -> String? {
+private func findDerivedDataDir(forWorkspacePath workspacePath: String, searchBases: [URL], fm: FileManager) -> String? {
     var candidates: [(path: String, modDate: Date)] = []
     
-    for base in derivedDataSearchBases(forWorkspacePath: workspacePath) {
+    for base in searchBases {
         // try? is intentional: a missing base dir (common for relative/custom modes) should
         // be skipped, not treated as a hard error.
         guard let entries = try? fm.contentsOfDirectory(atPath: base.path) else { continue }

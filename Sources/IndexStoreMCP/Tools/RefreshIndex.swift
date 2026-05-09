@@ -2,7 +2,7 @@ import Foundation
 import MCP
 @preconcurrency import IndexStoreDB
 
-func handleRefreshIndex(_ args: [String: Value], indexStore: IndexStore) async throws -> CallTool.Result {
+func handleRefreshIndex(indexStore: IndexStore) async throws -> CallTool.Result {
     guard let context = await indexStore.indexContext else {
         return .failure("No index loaded. Call loadIndex first.")
     }
