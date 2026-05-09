@@ -14,6 +14,13 @@ func handleLoadIndex(_ args: [String: Value], indexStore: IndexStore) async thro
         return .failure("Path does not exist or is not an .xcworkspace / .xcodeproj: \(workspacePath)")
     }
     
+    if let existing = await indexStore.loadedWorkspacePath {
+        if existing == workspacePath {
+            return .success("Index already loaded for this workspace.")
+        }
+        return .failure("Index is already loaded for a different workspace: \(existing). Restart the server to switch projects.")
+    }
+    
     do {
         guard let derivedDataDir = findDerivedDataDir(forWorkspacePath: workspacePath, fm: fm) else {
             return .failure("No DerivedData found for this workspace. Has the project been built in Xcode?")
@@ -111,7 +118,7 @@ private func findDerivedDataDir(forWorkspacePath workspacePath: String, fm: File
 
 private func indexStoreLibraryPath() async throws -> String {
     var candidates: [String] = []
-
+    
     if let devPath = await xcodeDevPath() {
         let devURL = URL(fileURLWithPath: devPath)
         candidates += [
@@ -146,7 +153,7 @@ private func xcodeDevPath() async -> String? {
     if let envPath = ProcessInfo.processInfo.environment["DEVELOPER_DIR"], !envPath.isEmpty {
         return envPath
     }
-
+    
     return await withCheckedContinuation { continuation in
         DispatchQueue.global(qos: .userInitiated).async {
             let proc = Process()
@@ -164,7 +171,7 @@ private func xcodeDevPath() async -> String? {
                 continuation.resume(returning: nil)
                 return
             }
-
+            
             let data = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
             let path = (String(data: data, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             continuation.resume(returning: path.isEmpty ? nil : path)
