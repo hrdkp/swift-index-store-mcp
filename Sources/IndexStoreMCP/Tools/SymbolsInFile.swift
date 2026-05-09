@@ -24,13 +24,13 @@ func handleSymbolsInFile(_ args: [String: Value], indexStore: IndexStore) async 
     let results = roleFiltered.filter { includeSystem || !$0.location.isSystem }
     let sorted = results.sorted { $0.location.line < $1.location.line }
     
-    let items: [[String: String]] = sorted.map { occurrence in
-        var dict: [String: String] = [
+    let items: [[String: Any]] = sorted.map { occurrence in
+        var dict: [String: Any] = [
             "name":   occurrence.symbol.name,
             "usr":    occurrence.symbol.usr,
             "kind":   String(describing: occurrence.symbol.kind),
-            "line":   String(occurrence.location.line),
-            "column": String(occurrence.location.utf8Column),
+            "line":   occurrence.location.line,
+            "column": occurrence.location.utf8Column,
             "role":   String(describing: occurrence.roles),
         ]
         if occurrence.symbol.subKind != .none {

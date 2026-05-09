@@ -21,9 +21,9 @@ func handleSymbolAtPosition(_ args: [String: Value], indexStore: IndexStore) asy
     
     guard !atLine.isEmpty else { return .success("[]") }
     
-    let items: [[String: String]] = atLine.map { occurrence in
-        var dict: [String: String] = [
-            "column": String(occurrence.location.utf8Column),
+    let items: [[String: Any]] = atLine.map { occurrence in
+        var dict: [String: Any] = [
+            "column": occurrence.location.utf8Column,
             "usr":    occurrence.symbol.usr,
             "name":   occurrence.symbol.name,
             "kind":   String(describing: occurrence.symbol.kind),
