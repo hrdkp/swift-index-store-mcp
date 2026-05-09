@@ -153,6 +153,15 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                         "required": .array([.string("file")]),
                     ])
                 ),
+                Tool(
+                    name: "refreshIndex",
+                    description: "Polls the index store for changes written since the last scan and updates the in-memory database. Call this after a build completes or whenever query results may be stale due to recent source changes.",
+                    inputSchema: .object([
+                        "type": .string("object"),
+                        "properties": .object([:]),
+                        "required": .array([]),
+                    ])
+                ),
             ])
     }
     
@@ -173,6 +182,8 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
             return try await handleRelatedOccurrences(args, indexStore: indexStore)
         case "symbolsInFile":
             return try await handleSymbolsInFile(args, indexStore: indexStore)
+        case "refreshIndex":
+            return try await handleRefreshIndex(args, indexStore: indexStore)
         default:
             return CallTool.Result(
                 content: [.text(text: "Unknown tool: \(params.name)", annotations: nil, _meta: nil)],
