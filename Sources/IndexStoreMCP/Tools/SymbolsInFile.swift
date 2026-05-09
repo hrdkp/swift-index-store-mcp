@@ -15,7 +15,7 @@ func handleSymbolsInFile(_ args: [String: Value], indexStore: IndexStore) async 
     let (roles, unknownRoles) = symbolRole(from: roleStrings, defaultRole: .definition)
     if !unknownRoles.isEmpty {
         return CallTool.Result(
-            content: [.text(text: "Unknown role(s): \(unknownRoles.joined(separator: ", ")). Valid roles: declaration, definition, reference, read, write, call, dynamic, addressOf, implicit, childOf, baseOf, overrideOf, receivedBy, calledBy, extendedBy, accessorOf, containedBy, ibTypeOf, specializationOf, canonical", annotations: nil, _meta: nil)],
+            content: [.text(text: "Unknown role(s): \(unknownRoles.joined(separator: ", ")). Valid roles: \(validRoleNames)", annotations: nil, _meta: nil)],
             isError: true
         )
     }
