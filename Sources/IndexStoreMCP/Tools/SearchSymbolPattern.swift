@@ -26,24 +26,7 @@ func handleSearchSymbolPattern(_ args: [String: Value], indexStore: IndexStore) 
     )
     let results = all.filter { includeSystem || !$0.location.isSystem }
     
-    if results.isEmpty {
-        var msg = "[]"
-        let systemCount = all.count - results.count
-        if systemCount > 0 {
-            msg += "\n\nNote: \(systemCount) system framework occurrence(s) excluded. Pass includeSystem: true to include them."
-        }
-        return CallTool.Result(content: [.text(text: msg, annotations: nil, _meta: nil)], isError: false)
-    }
-    
-    let items: [[String: String]] = results.map { occurrence in
-        [
-            "usr":      occurrence.symbol.usr,
-            "name":     occurrence.symbol.name,
-            "kind":     String(describing: occurrence.symbol.kind),
-            "location": occurrence.location.path + ":" + String(occurrence.location.line),
-        ]
-    }
-    
+    let items: [[String: String]] = results.map { $0.toCanonicalDict() }
     var output = (String(data: try JSONSerialization.data(withJSONObject: items, options: .prettyPrinted), encoding: .utf8) ?? "[]")
     let systemCount = all.count - results.count
     if systemCount > 0 {

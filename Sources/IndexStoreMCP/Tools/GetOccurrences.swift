@@ -27,30 +27,7 @@ func handleGetOccurrences(_ args: [String: Value], indexStore: IndexStore) async
         .filter { includeSystem || !$0.location.isSystem }
         .sorted { ($0.location.path, $0.location.line) < ($1.location.path, $1.location.line) }
     
-    let occurrenceList: [[String: Any]] = results.map { occurrence in
-        var dict: [String: Any] = [
-            "file":   occurrence.location.path,
-            "line":   occurrence.location.line,
-            "column": occurrence.location.utf8Column,
-            "role":   String(describing: occurrence.roles),
-            "name":   occurrence.symbol.name,
-            "kind":   String(describing: occurrence.symbol.kind),
-        ]
-        if occurrence.symbol.subKind != .none {
-            dict["subKind"] = String(describing: occurrence.symbol.subKind)
-        }
-        if !occurrence.relations.isEmpty {
-            dict["relations"] = occurrence.relations.map { relation in
-                [
-                    "usr":  relation.symbol.usr,
-                    "name": relation.symbol.name,
-                    "kind": String(describing: relation.symbol.kind),
-                    "role": String(describing: relation.roles),
-                ]
-            }
-        }
-        return dict
-    }
+    let occurrenceList: [[String: Any]] = results.map { $0.toDetailedDict() }
     
     var output = (String(data: try JSONSerialization.data(withJSONObject: occurrenceList, options: .prettyPrinted), encoding: .utf8) ?? "[]")
     let systemCount = all.count - results.count

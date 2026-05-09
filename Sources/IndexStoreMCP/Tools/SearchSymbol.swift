@@ -17,18 +17,7 @@ func handleSearchSymbol(_ args: [String: Value], indexStore: IndexStore) async t
         return CallTool.Result(content: [.text(text: "No exact match found for '\(name)'. If you expected a result, try searchSymbolPattern with a partial name.", annotations: nil, _meta: nil)], isError: false)
     }
     
-    let items: [[String: String]] = occurrences.map { occurrence in
-        var dict: [String: String] = [
-            "usr":      occurrence.symbol.usr,
-            "name":     occurrence.symbol.name,
-            "kind":     String(describing: occurrence.symbol.kind),
-            "location": occurrence.location.path + ":" + String(occurrence.location.line),
-        ]
-        if occurrence.symbol.subKind != .none {
-            dict["subKind"] = String(describing: occurrence.symbol.subKind)
-        }
-        return dict
-    }
+    let items: [[String: String]] = occurrences.map { $0.toCanonicalDict() }
     
     let data = try JSONSerialization.data(withJSONObject: items, options: .prettyPrinted)
     let text = String(data: data, encoding: .utf8) ?? "Found \(items.count) occurrences"
