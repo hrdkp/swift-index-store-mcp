@@ -3,13 +3,13 @@ import MCP
 @preconcurrency import IndexStoreDB
 
 func handleRefreshIndex(_ args: [String: Value], indexStore: IndexStore) async throws -> CallTool.Result {
-    guard let db = await indexStore.database,
-          let workspacePath = await indexStore.loadedWorkspacePath else {
+    guard let context = await indexStore.indexContext else {
         return CallTool.Result(
             content: [.text(text: "No index loaded. Call loadIndex first.", annotations: nil, _meta: nil)],
             isError: true
         )
     }
+    let (db, workspacePath) = (context.database, context.workspacePath)
     
     // pollForUnitChangesAndWait() is a blocking filesystem scan that can take
     // several seconds on large projects. Run it on a DispatchQueue thread so it
