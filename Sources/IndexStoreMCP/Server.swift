@@ -1,11 +1,32 @@
 import MCP
 import Foundation
 
+// MARK: - ToolName
+
+/// The authoritative set of tool names exposed by this server.
+///
+/// Using a `String` enum means:
+/// - `ListTools` uses `ToolName.<case>.rawValue` — no free-form literals.
+/// - The `CallTool` switch is over the enum — the compiler enforces exhaustiveness,
+///   so adding a case without a handler (or vice-versa) is a build error.
+enum ToolName: String {
+    case loadIndex
+    case searchSymbol
+    case searchSymbolPattern
+    case symbolAtPosition
+    case getOccurrences
+    case relatedOccurrences
+    case symbolsInFile
+    case refreshIndex
+}
+
+// MARK: - Registration
+
 func registerTools(on server: Server, indexStore: IndexStore) async {
     await server.withMethodHandler(ListTools.self) { _ in
             .init(tools: [
                 Tool(
-                    name: "loadIndex",
+                    name: ToolName.loadIndex.rawValue,
                     description: "Must be called first with the absolute path to the .xcworkspace or .xcodeproj before any other tool. Only needs to be called once per session.",
                     inputSchema: .object([
                         "type": .string("object"),
@@ -19,7 +40,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                     ])
                 ),
                 Tool(
-                    name: "searchSymbol",
+                    name: ToolName.searchSymbol.rawValue,
                     description: "Use when you know the exact symbol name as it appears in source code. Returns one or more USRs. Pass the exact name — do not guess or approximate. Read the source file first if unsure of spelling.",
                     inputSchema: .object([
                         "type": .string("object"),
@@ -33,7 +54,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                     ])
                 ),
                 Tool(
-                    name: "searchSymbolPattern",
+                    name: ToolName.searchSymbolPattern.rawValue,
                     description: "Use when searchSymbol returns no results or you only know a partial name. Performs subsequence matching — e.g. 'mvc' matches 'MyViewController', 'vdl' matches 'viewDidLoad'. Returns USRs like searchSymbol does.",
                     inputSchema: .object([
                         "type": .string("object"),
@@ -67,7 +88,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                     ])
                 ),
                 Tool(
-                    name: "symbolAtPosition",
+                    name: ToolName.symbolAtPosition.rawValue,
                     description: "Use when reading a file and you want the USR of a symbol at a specific line. More precise than searchSymbol when the name is ambiguous (e.g. init).",
                     inputSchema: .object([
                         "type": .string("object"),
@@ -85,7 +106,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                     ])
                 ),
                 Tool(
-                    name: "getOccurrences",
+                    name: ToolName.getOccurrences.rawValue,
                     description: "Use after obtaining a USR. Returns every location in the codebase where that symbol is defined, referenced, or called. Use the roles filter to narrow results.",
                     inputSchema: .object([
                         "type": .string("object"),
@@ -108,7 +129,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                     ])
                 ),
                 Tool(
-                    name: "relatedOccurrences",
+                    name: ToolName.relatedOccurrences.rawValue,
                     description: "Use to find structural relationships: protocol conformances, method overrides, type extensions. Use this before refactoring a protocol or base class to ensure all conforming types and overrides are found.",
                     inputSchema: .object([
                         "type": .string("object"),
@@ -131,7 +152,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                     ])
                 ),
                 Tool(
-                    name: "symbolsInFile",
+                    name: ToolName.symbolsInFile.rawValue,
                     description: "Use to get a structural outline of all symbols defined in a file. Call this before editing a file to understand what it contains, rather than reading and parsing the source text.",
                     inputSchema: .object([
                         "type": .string("object"),
@@ -154,7 +175,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                     ])
                 ),
                 Tool(
-                    name: "refreshIndex",
+                    name: ToolName.refreshIndex.rawValue,
                     description: "Polls the index store for changes written since the last scan and updates the in-memory database. Call this after a build completes or whenever query results may be stale due to recent source changes.",
                     inputSchema: .object([
                         "type": .string("object"),
@@ -167,28 +188,26 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
     
     await server.withMethodHandler(CallTool.self) { params in
         let args = params.arguments ?? [:]
-        switch params.name {
-        case "loadIndex":
+        guard let tool = ToolName(rawValue: params.name) else {
+            return .failure("Unknown tool: \(params.name)")
+        }
+        switch tool {
+        case .loadIndex:
             return try await handleLoadIndex(args, indexStore: indexStore)
-        case "searchSymbol":
+        case .searchSymbol:
             return try await handleSearchSymbol(args, indexStore: indexStore)
-        case "searchSymbolPattern":
+        case .searchSymbolPattern:
             return try await handleSearchSymbolPattern(args, indexStore: indexStore)
-        case "symbolAtPosition":
+        case .symbolAtPosition:
             return try await handleSymbolAtPosition(args, indexStore: indexStore)
-        case "getOccurrences":
+        case .getOccurrences:
             return try await handleGetOccurrences(args, indexStore: indexStore)
-        case "relatedOccurrences":
+        case .relatedOccurrences:
             return try await handleRelatedOccurrences(args, indexStore: indexStore)
-        case "symbolsInFile":
+        case .symbolsInFile:
             return try await handleSymbolsInFile(args, indexStore: indexStore)
-        case "refreshIndex":
+        case .refreshIndex:
             return try await handleRefreshIndex(args, indexStore: indexStore)
-        default:
-            return CallTool.Result(
-                content: [.text(text: "Unknown tool: \(params.name)", annotations: nil, _meta: nil)],
-                isError: true
-            )
         }
     }
 }
