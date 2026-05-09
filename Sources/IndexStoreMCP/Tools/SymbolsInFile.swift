@@ -42,11 +42,6 @@ func handleSymbolsInFile(_ args: [String: Value], indexStore: IndexStore) async 
         return dict
     }
     
-    var output = String(decoding: try JSONSerialization.data(withJSONObject: items, options: .prettyPrinted), as: UTF8.self)
-    let systemCount = roleFiltered.count - results.count
-    if systemCount > 0 {
-        output += "\n\nNote: \(systemCount) system framework occurrence(s) excluded. Pass includeSystem: true to include them."
-    }
-    
+    let output = try formatOccurrenceJSON(items, systemCount: roleFiltered.count - results.count)
     return CallTool.Result(content: [.text(text: output, annotations: nil, _meta: nil)], isError: false)
 }

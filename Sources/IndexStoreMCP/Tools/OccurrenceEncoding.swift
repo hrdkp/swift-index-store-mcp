@@ -1,4 +1,15 @@
+import Foundation
 import IndexStoreDB
+
+/// Serialises `object` to a pretty-printed JSON string and, when `systemCount > 0`,
+/// appends a note explaining that system framework occurrences were excluded.
+func formatOccurrenceJSON(_ object: Any, systemCount: Int) throws -> String {
+    var text = String(data: try JSONSerialization.data(withJSONObject: object, options: .prettyPrinted), encoding: .utf8) ?? "[]"
+    if systemCount > 0 {
+        text += "\n\nNote: \(systemCount) system framework occurrence(s) excluded. Pass includeSystem: true to include them."
+    }
+    return text
+}
 
 extension SymbolOccurrence {
     /// Compact dict for canonical symbol lookups (one result per USR).

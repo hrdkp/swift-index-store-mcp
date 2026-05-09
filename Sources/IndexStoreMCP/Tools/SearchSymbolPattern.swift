@@ -27,11 +27,6 @@ func handleSearchSymbolPattern(_ args: [String: Value], indexStore: IndexStore) 
     let results = all.filter { includeSystem || !$0.location.isSystem }
     
     let items: [[String: String]] = results.map { $0.toCanonicalDict() }
-    var output = (String(data: try JSONSerialization.data(withJSONObject: items, options: .prettyPrinted), encoding: .utf8) ?? "[]")
-    let systemCount = all.count - results.count
-    if systemCount > 0 {
-        output += "\n\nNote: \(systemCount) system framework occurrence(s) excluded. Pass includeSystem: true to include them."
-    }
-    
+    let output = try formatOccurrenceJSON(items, systemCount: all.count - results.count)
     return CallTool.Result(content: [.text(text: output, annotations: nil, _meta: nil)], isError: false)
 }

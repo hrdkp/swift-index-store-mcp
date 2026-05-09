@@ -29,11 +29,6 @@ func handleRelatedOccurrences(_ args: [String: Value], indexStore: IndexStore) a
     
     let dicts: [[String: Any]] = results.map { $0.toDetailedDict() }
     
-    var output = (String(data: try JSONSerialization.data(withJSONObject: dicts, options: .prettyPrinted), encoding: .utf8) ?? "[]")
-    let systemCount = all.count - results.count
-    if systemCount > 0 {
-        output += "\n\nNote: \(systemCount) system framework occurrence(s) excluded. Pass includeSystem: true to include them."
-    }
-    
+    let output = try formatOccurrenceJSON(dicts, systemCount: all.count - results.count)
     return CallTool.Result(content: [.text(text: output, annotations: nil, _meta: nil)], isError: false)
 }
