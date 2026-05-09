@@ -22,7 +22,9 @@ func handleSymbolAtPosition(_ args: [String: Value], indexStore: IndexStore) asy
         .filter { includeSystem || !$0.location.isSystem }
         .sorted { $0.location.utf8Column < $1.location.utf8Column }
     
-    guard !atLine.isEmpty else { return .success("[]") }
+    guard !atLine.isEmpty else {
+        return .success("No symbols found at \(file):\(line). The file may not be indexed — try rebuilding the project and calling refreshIndex.")
+    }
     
     let items: [[String: Any]] = atLine.map { occurrence in
         var dict: [String: Any] = [
