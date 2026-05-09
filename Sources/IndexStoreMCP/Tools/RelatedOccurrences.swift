@@ -1,5 +1,5 @@
 import MCP
-import IndexStoreDB
+@preconcurrency import IndexStoreDB
 import Foundation
 
 func handleRelatedOccurrences(_ args: [String: Value], indexStore: IndexStore) async throws -> CallTool.Result {

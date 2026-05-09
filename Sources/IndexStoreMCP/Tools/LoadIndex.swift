@@ -1,5 +1,5 @@
 import MCP
-import IndexStoreDB
+@preconcurrency import IndexStoreDB
 import Foundation
 import CryptoKit
 
