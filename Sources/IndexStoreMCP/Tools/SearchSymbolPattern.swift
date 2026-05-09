@@ -4,11 +4,11 @@ import Foundation
 
 func handleSearchSymbolPattern(_ args: [String: Value], indexStore: IndexStore) async throws -> CallTool.Result {
     guard let database = await indexStore.database else {
-        return CallTool.Result(content: [.text(text: "No index loaded. Call loadIndex first.", annotations: nil, _meta: nil)], isError: true)
+        return .failure("No index loaded. Call loadIndex first.")
     }
     
     guard let pattern = args["pattern"]?.stringValue else {
-        return CallTool.Result(content: [.text(text: "Missing required argument: pattern", annotations: nil, _meta: nil)], isError: true)
+        return .failure("Missing required argument: pattern")
     }
     
     let anchorStart   = args["anchorStart"]?.boolValue   ?? false
@@ -28,5 +28,5 @@ func handleSearchSymbolPattern(_ args: [String: Value], indexStore: IndexStore) 
     
     let items: [[String: String]] = results.map { $0.toCanonicalDict() }
     let output = try formatOccurrenceJSON(items, systemCount: all.count - results.count)
-    return CallTool.Result(content: [.text(text: output, annotations: nil, _meta: nil)], isError: false)
+    return .success(output)
 }

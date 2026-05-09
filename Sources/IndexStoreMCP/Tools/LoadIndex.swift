@@ -5,27 +5,18 @@ import CryptoKit
 
 func handleLoadIndex(_ args: [String: Value], indexStore: IndexStore) async throws -> CallTool.Result {
     guard let workspacePath = args["workspacePath"]?.stringValue else {
-        return CallTool.Result(
-            content: [.text(text: "Missing required argument: workspacePath", annotations: nil, _meta: nil)],
-            isError: true
-        )
+        return .failure("Missing required argument: workspacePath")
     }
     
     let fm = FileManager.default
     guard fm.fileExists(atPath: workspacePath),
           workspacePath.hasSuffix(".xcworkspace") || workspacePath.hasSuffix(".xcodeproj") else {
-        return CallTool.Result(
-            content: [.text(text: "Path does not exist or is not an .xcworkspace / .xcodeproj: \(workspacePath)", annotations: nil, _meta: nil)],
-            isError: true
-        )
+        return .failure("Path does not exist or is not an .xcworkspace / .xcodeproj: \(workspacePath)")
     }
     
     do {
         guard let derivedDataDir = findDerivedDataDir(forWorkspacePath: workspacePath, fm: fm) else {
-            return CallTool.Result(
-                content: [.text(text: "No DerivedData found for this workspace. Has the project been built in Xcode?", annotations: nil, _meta: nil)],
-                isError: true
-            )
+            return .failure("No DerivedData found for this workspace. Has the project been built in Xcode?")
         }
         
         let storeURL = URL(fileURLWithPath: derivedDataDir)
@@ -51,14 +42,9 @@ func handleLoadIndex(_ args: [String: Value], indexStore: IndexStore) async thro
         
         await indexStore.setDatabase(db, workspacePath: workspacePath)
         
-        return CallTool.Result(
-            content: [.text(text: "Index loaded: \(storeURL.path)", annotations: nil, _meta: nil)]
-        )
+        return .success("Index loaded: \(storeURL.path)")
     } catch {
-        return CallTool.Result(
-            content: [.text(text: "Failed to load index: \(error)", annotations: nil, _meta: nil)],
-            isError: true
-        )
+        return .failure("Failed to load index: \(error)")
     }
 }
 

@@ -4,20 +4,17 @@ import Foundation
 
 func handleGetOccurrences(_ args: [String: Value], indexStore: IndexStore) async throws -> CallTool.Result {
     guard let database = await indexStore.database else {
-        return CallTool.Result(content: [.text(text: "No index loaded. Call loadIndex first.", annotations: nil, _meta: nil)], isError: true)
+        return .failure("No index loaded. Call loadIndex first.")
     }
     
     guard let usr = args["usr"]?.stringValue else {
-        return CallTool.Result(content: [.text(text: "Missing required argument: usr", annotations: nil, _meta: nil)], isError: true)
+        return .failure("Missing required argument: usr")
     }
     
     let roleStrings = args["roles"]?.arrayValue?.compactMap { $0.stringValue } ?? []
     let (roles, unknownRoles) = symbolRole(from: roleStrings, defaultRole: .all)
     if !unknownRoles.isEmpty {
-        return CallTool.Result(
-            content: [.text(text: "Unknown role(s): \(unknownRoles.joined(separator: ", ")). Valid roles: \(validRoleNames)", annotations: nil, _meta: nil)],
-            isError: true
-        )
+        return .failure("Unknown role(s): \(unknownRoles.joined(separator: ", ")). Valid roles: \(validRoleNames)")
     }
     
     let includeSystem = args["includeSystem"]?.boolValue ?? false
@@ -30,5 +27,5 @@ func handleGetOccurrences(_ args: [String: Value], indexStore: IndexStore) async
     let occurrenceList: [[String: Any]] = results.map { $0.toDetailedDict() }
     
     let output = try formatOccurrenceJSON(occurrenceList, systemCount: all.count - results.count)
-    return CallTool.Result(content: [.text(text: output, annotations: nil, _meta: nil)], isError: false)
+    return .success(output)
 }

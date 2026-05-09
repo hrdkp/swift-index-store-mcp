@@ -4,10 +4,7 @@ import MCP
 
 func handleRefreshIndex(_ args: [String: Value], indexStore: IndexStore) async throws -> CallTool.Result {
     guard let context = await indexStore.indexContext else {
-        return CallTool.Result(
-            content: [.text(text: "No index loaded. Call loadIndex first.", annotations: nil, _meta: nil)],
-            isError: true
-        )
+        return .failure("No index loaded. Call loadIndex first.")
     }
     let (db, workspacePath) = (context.database, context.workspacePath)
     
@@ -21,7 +18,5 @@ func handleRefreshIndex(_ args: [String: Value], indexStore: IndexStore) async t
         }
     }
     
-    return CallTool.Result(
-        content: [.text(text: "Index refreshed for workspace: \(workspacePath)", annotations: nil, _meta: nil)]
-    )
+    return .success("Index refreshed for workspace: \(workspacePath)")
 }

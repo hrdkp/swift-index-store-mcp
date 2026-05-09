@@ -4,20 +4,17 @@ import Foundation
 
 func handleSymbolsInFile(_ args: [String: Value], indexStore: IndexStore) async throws -> CallTool.Result {
     guard let database = await indexStore.database else {
-        return CallTool.Result(content: [.text(text: "No index loaded. Call loadIndex first.", annotations: nil, _meta: nil)], isError: true)
+        return .failure("No index loaded. Call loadIndex first.")
     }
     
     guard let file = args["file"]?.stringValue else {
-        return CallTool.Result(content: [.text(text: "Missing required argument: file", annotations: nil, _meta: nil)], isError: true)
+        return .failure("Missing required argument: file")
     }
     
     let roleStrings = args["roles"]?.arrayValue?.compactMap { $0.stringValue } ?? []
     let (roles, unknownRoles) = symbolRole(from: roleStrings, defaultRole: .definition)
     if !unknownRoles.isEmpty {
-        return CallTool.Result(
-            content: [.text(text: "Unknown role(s): \(unknownRoles.joined(separator: ", ")). Valid roles: \(validRoleNames)", annotations: nil, _meta: nil)],
-            isError: true
-        )
+        return .failure("Unknown role(s): \(unknownRoles.joined(separator: ", ")). Valid roles: \(validRoleNames)")
     }
     
     let includeSystem = args["includeSystem"]?.boolValue ?? false
@@ -43,5 +40,5 @@ func handleSymbolsInFile(_ args: [String: Value], indexStore: IndexStore) async 
     }
     
     let output = try formatOccurrenceJSON(items, systemCount: roleFiltered.count - results.count)
-    return CallTool.Result(content: [.text(text: output, annotations: nil, _meta: nil)], isError: false)
+    return .success(output)
 }
