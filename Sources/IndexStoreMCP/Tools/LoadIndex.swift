@@ -29,7 +29,7 @@ func handleLoadIndex(_ args: [String: Value], indexStore: IndexStore) async thro
         let dbURL = cacheBaseURL.appendingPathComponent(hashHex)
         try fm.createDirectory(at: dbURL, withIntermediateDirectories: true)
         
-        let libPath = try indexStoreLibraryPath()
+        let libPath = try await indexStoreLibraryPath()
         let library = try IndexStoreLibrary(dylibPath: libPath)
         
         let db = try IndexStoreDB(
@@ -109,11 +109,10 @@ private func findDerivedDataDir(forWorkspacePath workspacePath: String, fm: File
 
 // MARK: - IndexStore library discovery
 
-private func indexStoreLibraryPath() throws -> String {
+private func indexStoreLibraryPath() async throws -> String {
     var candidates: [String] = []
-    
-    // Xcode-based paths derived from the developer directory (no subprocess if DEVELOPER_DIR is set).
-    if let devPath = xcodeDevPath() {
+
+    if let devPath = await xcodeDevPath() {
         let devURL = URL(fileURLWithPath: devPath)
         candidates += [
             devURL
@@ -143,26 +142,34 @@ private func indexStoreLibraryPath() throws -> String {
 
 // Returns the Xcode developer directory without spawning a subprocess when possible.
 // Returns nil if neither source resolves a non-empty path (e.g. no Xcode installed).
-private func xcodeDevPath() -> String? {
-    // 1. DEVELOPER_DIR — set by Xcode build phases and most CI environments; costs nothing.
+private func xcodeDevPath() async -> String? {
     if let envPath = ProcessInfo.processInfo.environment["DEVELOPER_DIR"], !envPath.isEmpty {
         return envPath
     }
-    
-    // 2. xcode-select -p — subprocess, but always correct on a developer machine with Xcode.
-    let proc = Process()
-    proc.executableURL = URL(fileURLWithPath: "/usr/bin/xcode-select")
-    proc.arguments = ["-p"]
-    let stdoutPipe = Pipe()
-    proc.standardOutput = stdoutPipe
-    proc.standardError = Pipe()
-    guard (try? proc.run()) != nil else { return nil }
-    proc.waitUntilExit()
-    guard proc.terminationStatus == 0 else { return nil }
-    
-    let data = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-    let path = (String(data: data, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-    return path.isEmpty ? nil : path
+
+    return await withCheckedContinuation { continuation in
+        DispatchQueue.global(qos: .userInitiated).async {
+            let proc = Process()
+            proc.executableURL = URL(fileURLWithPath: "/usr/bin/xcode-select")
+            proc.arguments = ["-p"]
+            let stdoutPipe = Pipe()
+            proc.standardOutput = stdoutPipe
+            proc.standardError = Pipe()
+            guard (try? proc.run()) != nil else {
+                continuation.resume(returning: nil)
+                return
+            }
+            proc.waitUntilExit()
+            guard proc.terminationStatus == 0 else {
+                continuation.resume(returning: nil)
+                return
+            }
+
+            let data = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+            let path = (String(data: data, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            continuation.resume(returning: path.isEmpty ? nil : path)
+        }
+    }
 }
 
 private enum LoadIndexError: Error, CustomStringConvertible {
