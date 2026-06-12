@@ -32,8 +32,11 @@ found" error.
 
 ## Running tests in CI
 
-CI requires a macOS runner with Xcode installed. The key is to run `xcodebuild build`
-before `swift test` so that the DerivedData index store exists:
+The GitHub Actions workflow (`.github/workflows/test.yml`) runs on every push to
+`main` and on pull requests. It uses a macOS runner with Xcode pre-installed and runs
+`xcodebuild build` before `swift test` to generate the index store.
+
+The key steps are:
 
 ```sh
 xcodebuild build -scheme IndexStoreMCP -destination 'platform=macOS' -quiet

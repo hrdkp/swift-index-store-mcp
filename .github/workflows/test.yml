@@ -1,0 +1,26 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Print Xcode version
+        run: xcodebuild -version
+
+      - name: Build with xcodebuild (generates index store)
+        run: |
+          xcodebuild build \
+            -scheme IndexStoreMCP \
+            -destination 'platform=macOS' \
+            -quiet
+
+      - name: Run tests
+        run: swift test
