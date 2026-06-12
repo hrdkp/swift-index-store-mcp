@@ -41,13 +41,13 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                 ),
                 Tool(
                     name: ToolName.searchSymbol.rawValue,
-                    description: "Use when you know the exact symbol name as it appears in source code. Returns one or more USRs. Pass the exact name — do not guess or approximate. Read the source file first if unsure of spelling.",
+                    description: "Use when you know the symbol name. Returns one or more USRs. For types and properties, use the bare name (e.g. MyViewController, isLoading). For methods, you can use either the bare name (e.g. viewDidLoad) or the full signature with labels (e.g. tableView(_:numberOfRowsInSection:)). Falls back to prefix matching if no exact match is found.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([
                             "name": .object([
                                 "type": .string("string"),
-                                "description": .string("Exact symbol name as it appears in source code, e.g. viewDidLoad, MyViewController, init"),
+                                "description": .string("Symbol name — e.g. MyViewController, viewDidLoad, tableView(_:numberOfRowsInSection:)"),
                             ]),
                             "includeSystem": .object([
                                 "type": .string("boolean"),

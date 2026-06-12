@@ -115,7 +115,17 @@ struct SearchSymbolTests {
             indexStore: store
         )
         #expect(!result.isFailure)
-        #expect(result.text.contains("No exact match"))
+        #expect(result.text.contains("No match found"))
+    }
+    
+    @Test func fallsBackToPrefixMatchForBareMethods() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleSearchSymbol(
+            ["name": .string("reserveLoading")],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains("reserveLoading(workspacePath:)"))
     }
     
     @Test func requiresLoadedIndex() async throws {

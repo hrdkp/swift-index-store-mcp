@@ -13,11 +13,24 @@ func handleSearchSymbol(_ args: [String: Value], indexStore: IndexStore) async t
     
     let includeSystem = args["includeSystem"]?.boolValue ?? false
     
-    let all = database.canonicalOccurrences(ofName: name)
-    let results = all.filter { includeSystem || !$0.location.isSystem }
+    var all = database.canonicalOccurrences(ofName: name)
+    var results = all.filter { includeSystem || !$0.location.isSystem }
     
+    // Exact match failed — try prefix match to handle bare method names
+    // (e.g. "reserveLoading" → "reserveLoading(workspacePath:)").
     if results.isEmpty {
-        return .success("No exact match found for '\(name)'. If you expected a result, try searchSymbolPattern with a partial name.")
+        all = database.canonicalOccurrences(
+            containing: name,
+            anchorStart: true,
+            anchorEnd: false,
+            subsequence: false,
+            ignoreCase: false
+        )
+        results = all.filter { includeSystem || !$0.location.isSystem }
+        
+        if results.isEmpty {
+            return .success("No match found for '\(name)'. Try searchSymbolPattern with a partial name.")
+        }
     }
     
     let items: [[String: String]] = results.map { $0.toCanonicalDict() }
