@@ -14,12 +14,18 @@ func handleLoadIndex(_ args: [String: Value], indexStore: IndexStore) async thro
         return .failure("Path does not exist or is not an .xcworkspace / .xcodeproj: \(workspacePath)")
     }
     
-    if let existing = await indexStore.loadedWorkspacePath {
-        if existing == workspacePath {
-            return .success("Index already loaded for this workspace.")
-        }
-        return .failure("Index is already loaded for a different workspace: \(existing). Restart the server to switch projects.")
+    switch await indexStore.reserveLoading(workspacePath: workspacePath) {
+    case .alreadyLoaded(samePath: true):
+        return .success("Index already loaded for this workspace.")
+    case .alreadyLoaded(samePath: false):
+        return .failure("Index is already loaded for a different workspace. Restart the server to switch projects.")
+    case .loadInProgress:
+        return .failure("Index load is already in progress. Please wait for it to complete.")
+    case .reserved:
+        break // Proceed with loading indexStore database
     }
+    
+    defer { Task { await indexStore.loadEnded() } }
     
     do {
         let searchBases = derivedDataSearchBases(forWorkspacePath: workspacePath)
