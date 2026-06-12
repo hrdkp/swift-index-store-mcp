@@ -183,3 +183,7 @@ System framework symbols (UIKit, Foundation, etc.) are filtered out by default. 
 ## Testing
 
 See [TESTING.md](TESTING.md).
+
+## License
+
+IndexStoreMCP is released under the MIT License. See [LICENSE](LICENSE) for details.
