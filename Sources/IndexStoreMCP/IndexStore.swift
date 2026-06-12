@@ -2,7 +2,7 @@ import IndexStoreDB
 
 actor IndexStore {
     
-    enum ReserveLoadingResult {
+    enum ReserveLoadingResult: Equatable {
         case reserved
         case loadInProgress
         case alreadyLoaded(samePath: Bool)

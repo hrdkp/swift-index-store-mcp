@@ -1,7 +1,271 @@
 import Testing
+import Foundation
+import MCP
 
 @testable import IndexStoreMCP
 
-@Test func example() async throws {
-    // Write your test here and use APIs like `#expect(...)` to check expected conditions.
+// MARK: - Helpers
+
+private let workspacePath: String = {
+    // Walk up from the test executable to find the package root (directory containing Package.swift).
+    var url = URL(fileURLWithPath: #filePath)
+    while url.path != "/" {
+        url = url.deletingLastPathComponent()
+        if FileManager.default.fileExists(atPath: url.appendingPathComponent("Package.swift").path) {
+            return url.path
+        }
+    }
+    fatalError("Could not find Package.swift in any parent directory of \(#filePath)")
+}()
+private let indexStoreFile = "\(workspacePath)/Sources/IndexStoreMCP/IndexStore.swift"
+
+extension CallTool.Result {
+    var text: String {
+        content.compactMap {
+            if case .text(let text, _, _) = $0 { return text }
+            return nil
+        }.joined()
+    }
+    
+    var isFailure: Bool { isError == true }
+}
+
+private func loadedIndexStore() async throws -> IndexStore {
+    let store = IndexStore()
+    let result = try await handleLoadIndex(
+        ["workspacePath": .string(workspacePath)],
+        indexStore: store
+    )
+    #expect(!result.isFailure, "loadIndex failed: \(result.text)")
+    return store
+}
+
+// MARK: - loadIndex
+
+@Suite("loadIndex")
+struct LoadIndexTests {
+    @Test func loadSucceeds() async throws {
+        let store = IndexStore()
+        let result = try await handleLoadIndex(
+            ["workspacePath": .string(workspacePath)],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains("Index loaded"))
+    }
+    
+    @Test func idempotentForSameWorkspace() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleLoadIndex(
+            ["workspacePath": .string(workspacePath)],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains("already loaded"))
+    }
+    
+    @Test func rejectsDifferentWorkspace() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleLoadIndex(
+            ["workspacePath": .string("/tmp")],
+            indexStore: store
+        )
+        #expect(result.isFailure)
+        #expect(result.text.contains("already loaded for a different workspace"))
+    }
+    
+    @Test func rejectsNonexistentPath() async throws {
+        let store = IndexStore()
+        let result = try await handleLoadIndex(
+            ["workspacePath": .string("/nonexistent/path")],
+            indexStore: store
+        )
+        #expect(result.isFailure)
+        #expect(result.text.contains("does not exist"))
+    }
+    
+    @Test func rejectsRegularFile() async throws {
+        let store = IndexStore()
+        let result = try await handleLoadIndex(
+            ["workspacePath": .string(indexStoreFile)],
+            indexStore: store
+        )
+        #expect(result.isFailure)
+    }
+}
+
+// MARK: - searchSymbol
+
+@Suite("searchSymbol")
+struct SearchSymbolTests {
+    @Test func findsKnownSymbol() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleSearchSymbol(
+            ["name": .string("IndexStore")],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains("s:13IndexStoreMCP0aB0C"))
+    }
+    
+    @Test func returnsMessageForUnknownSymbol() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleSearchSymbol(
+            ["name": .string("CompletelyBogusSymbolName12345")],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains("No exact match"))
+    }
+    
+    @Test func requiresLoadedIndex() async throws {
+        let store = IndexStore()
+        let result = try await handleSearchSymbol(
+            ["name": .string("IndexStore")],
+            indexStore: store
+        )
+        #expect(result.isFailure)
+        #expect(result.text.contains("No index loaded"))
+    }
+}
+
+// MARK: - symbolAtPosition
+
+@Suite("symbolAtPosition")
+struct SymbolAtPositionTests {
+    @Test func findsSymbolAtExactPosition() async throws {
+        let store = try await loadedIndexStore()
+        // "actor IndexStore" is at line 3, column 7
+        let result = try await handleSymbolAtPosition(
+            ["file": .string(indexStoreFile), "line": .int(3), "column": .int(7)],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains("IndexStore"))
+    }
+    
+    @Test func columnSnapsToNearestSymbol() async throws {
+        let store = try await loadedIndexStore()
+        // Column 10 is past the start of "IndexStore" on line 3 — should still match it
+        let result = try await handleSymbolAtPosition(
+            ["file": .string(indexStoreFile), "line": .int(3), "column": .int(10)],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains("IndexStore"))
+    }
+    
+    @Test func returnsMessageForEmptyLine() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleSymbolAtPosition(
+            ["file": .string(indexStoreFile), "line": .int(9999), "column": .int(1)],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains("No symbol found"))
+    }
+    
+    @Test func requiresColumnArg() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleSymbolAtPosition(
+            ["file": .string(indexStoreFile), "line": .int(3)],
+            indexStore: store
+        )
+        #expect(result.isFailure)
+        #expect(result.text.contains("column"))
+    }
+}
+
+// MARK: - symbolsInFile
+
+@Suite("symbolsInFile")
+struct SymbolsInFileTests {
+    @Test func listsSymbolsInKnownFile() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleSymbolsInFile(
+            ["file": .string(indexStoreFile)],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains("IndexStore"))
+        #expect(result.text.contains("reserveLoading"))
+        #expect(result.text.contains("setDatabase"))
+        #expect(result.text.contains("loadEnded"))
+    }
+}
+
+// MARK: - getOccurrences
+
+@Suite("getOccurrences")
+struct GetOccurrencesTests {
+    @Test func findsOccurrencesForKnownUSR() async throws {
+        let store = try await loadedIndexStore()
+        // USR for the IndexStore actor
+        let result = try await handleGetOccurrences(
+            ["usr": .string("s:13IndexStoreMCP0aB0C")],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains("IndexStore.swift"))
+    }
+    
+    @Test func returnsMessageForBogusUSR() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleGetOccurrences(
+            ["usr": .string("s:totally_bogus_usr")],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains("No occurrences found"))
+    }
+    
+    @Test func rejectsUnknownRoles() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleGetOccurrences(
+            ["usr": .string("s:13IndexStoreMCP0aB0C"), "roles": .array([.string("madeUpRole")])],
+            indexStore: store
+        )
+        #expect(result.isFailure)
+        #expect(result.text.contains("Unknown role"))
+    }
+}
+
+// MARK: - reserveLoad concurrency
+
+@Suite("IndexStore actor")
+struct IndexStoreActorTests {
+    @Test func reserveLoadBlocksConcurrentCallers() async throws {
+        let store = IndexStore()
+        let first = await store.reserveLoading(workspacePath: workspacePath)
+        #expect(first == .reserved)
+        
+        let second = await store.reserveLoading(workspacePath: workspacePath)
+        #expect(second == .loadInProgress)
+        
+        await store.loadEnded()
+        
+        // After loadEnded, a new reserve should succeed
+        let third = await store.reserveLoading(workspacePath: workspacePath)
+        #expect(third == .reserved)
+    }
+    
+    @Test func alreadyLoadedSamePath() async throws {
+        let store = try await loadedIndexStore()
+        let result = await store.reserveLoading(workspacePath: workspacePath)
+        if case .alreadyLoaded(samePath: let same) = result {
+            #expect(same == true)
+        } else {
+            Issue.record("Expected .alreadyLoaded, got \(result)")
+        }
+    }
+    
+    @Test func alreadyLoadedDifferentPath() async throws {
+        let store = try await loadedIndexStore()
+        let result = await store.reserveLoading(workspacePath: "/some/other/path")
+        if case .alreadyLoaded(samePath: let same) = result {
+            #expect(same == false)
+        } else {
+            Issue.record("Expected .alreadyLoaded, got \(result)")
+        }
+    }
 }
