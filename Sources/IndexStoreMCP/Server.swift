@@ -59,7 +59,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                 ),
                 Tool(
                     name: ToolName.searchSymbolPattern.rawValue,
-                    description: "Use when searchSymbol returns no results or you only know a partial name. Performs subsequence matching — e.g. 'mvc' matches 'MyViewController', 'vdl' matches 'viewDidLoad'. Returns USRs like searchSymbol does.",
+                    description: "Use when searchSymbol returns no results or you only know a partial name. Performs subsequence matching — e.g. 'mvc' matches 'MyViewController'. Results may include matches from dependencies. Use anchorStart/anchorEnd and longer patterns to narrow results.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([

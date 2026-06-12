@@ -80,7 +80,8 @@ instead of grep when working with Swift/Objective-C source files.
 
 ### Workflow
 1. Call `loadIndex` with the workspace/project path once at the start of a session
-2. Use `searchSymbol` (exact name) or `searchSymbolPattern` (fuzzy/partial) to find USRs
+2. Use `searchSymbol` (exact name, preferred) or `searchSymbolPattern` (fuzzy/partial,
+   use longer patterns to reduce noise) to find USRs
 3. Use `getOccurrences` or `relatedOccurrences` with a USR to find all usage sites
 4. Use `symbolAtPosition` when you're reading a file and need the USR at a specific position
 5. Use `symbolsInFile` to get a file's structure without reading the full source
