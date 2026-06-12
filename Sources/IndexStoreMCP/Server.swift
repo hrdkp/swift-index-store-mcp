@@ -33,7 +33,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                         "properties": .object([
                             "workspacePath": .object([
                                 "type": .string("string"),
-                                "description": .string("Absolute path to the .xcworkspace or .xcodeproj"),
+                                "description": .string("Absolute path to the .xcworkspace, .xcodeproj, or Swift Package directory"),
                             ]),
                         ]),
                         "required": .array([.string("workspacePath")]),

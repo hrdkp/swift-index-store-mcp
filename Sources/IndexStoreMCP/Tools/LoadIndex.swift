@@ -9,9 +9,14 @@ func handleLoadIndex(_ args: [String: Value], indexStore: IndexStore) async thro
     }
     
     let fm = FileManager.default
-    guard fm.fileExists(atPath: workspacePath),
-          workspacePath.hasSuffix(".xcworkspace") || workspacePath.hasSuffix(".xcodeproj") else {
-        return .failure("Path does not exist or is not an .xcworkspace / .xcodeproj: \(workspacePath)")
+    var isDirectory: ObjCBool = false
+    guard fm.fileExists(atPath: workspacePath, isDirectory: &isDirectory) else {
+        return .failure("Path does not exist: \(workspacePath)")
+    }
+    // Accept .xcworkspace, .xcodeproj, or a bare directory (Swift packages opened in Xcode).
+    let validExtension = workspacePath.hasSuffix(".xcworkspace") || workspacePath.hasSuffix(".xcodeproj")
+    guard validExtension || isDirectory.boolValue else {
+        return .failure("Path must be an .xcworkspace, .xcodeproj, or a directory containing a Swift package: \(workspacePath)")
     }
     
     switch await indexStore.reserveLoading(workspacePath: workspacePath) {
