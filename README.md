@@ -4,6 +4,16 @@ An MCP server that gives AI agents semantic code navigation for Xcode projects. 
 
 Built on Apple's [IndexStoreDB](https://github.com/swiftlang/indexstore-db) library, which reads the index data that Xcode generates during builds.
 
+## When is this useful?
+
+- **Large codebases** where `grep` returns too much noise. Symbol lookup by USR is exact — no false matches from comments, strings, or similarly named symbols.
+- **Refactoring** — find all protocol conformances, method overrides, and extensions before changing a type or interface. `relatedOccurrences` answers "what will break?" in one call.
+- **Navigating unfamiliar code** — agents can trace call graphs and jump between definitions and references the same way a developer uses Cmd+Click in Xcode, instead of guessing at file structure.
+- **Reducing context window usage** — `symbolsInFile` returns a structural outline (names, kinds, line numbers) without reading the entire source file. For large files this keeps the agent's context focused.
+- **Cross-dependency navigation** — the index includes symbols from your project's Swift package dependencies, not just your own source files.
+
+For small projects, `grep` and file reading are usually fast enough. This MCP pays off as project size and complexity grow.
+
 ## Prerequisites
 
 - **macOS 14+**
@@ -28,7 +38,7 @@ The binary is at `.build/release/IndexStoreMCP` inside the cloned directory.
 <summary><strong>Claude Code</strong></summary>
 
 ```sh
-claude mcp add index-store /path/to/swift-index-store-mcp/.build/release/IndexStoreMCP
+claude mcp add index-store-mcp /path/to/swift-index-store-mcp/.build/release/IndexStoreMCP
 ```
 
 </details>
@@ -41,7 +51,7 @@ Add to your MCP configuration file:
 ```json
 {
   "mcpServers": {
-    "index-store": {
+    "index-store-mcp": {
       "command": "/path/to/swift-index-store-mcp/.build/release/IndexStoreMCP"
     }
   }
@@ -49,6 +59,33 @@ Add to your MCP configuration file:
 ```
 
 </details>
+
+### Configuring your agent
+
+Adding the MCP server makes the tools *available*, but agents will often default to `grep` unless instructed otherwise. Add the following to your project's `CLAUDE.md` (or equivalent agent instructions file) to encourage the agent to use the index:
+
+```markdown
+## Xcode Navigation (index-store-mcp)
+
+This project has the index-store-mcp server configured. Use it for code navigation
+instead of grep when working with Swift/Objective-C source files.
+
+### When to use
+- Finding where a symbol is defined, referenced, or called
+- Tracing protocol conformances, method overrides, or extensions
+- Getting a structural outline of a file before reading it
+- Disambiguating symbols with common names (e.g., init, configure, handle)
+- Identifying a symbol's type or kind (class, protocol, enum, method, property)
+- Navigating into symbols defined in package dependencies
+
+### Workflow
+1. Call `loadIndex` with the workspace/project path once at the start of a session
+2. Use `searchSymbol` (exact name) or `searchSymbolPattern` (fuzzy/partial) to find USRs
+3. Use `getOccurrences` or `relatedOccurrences` with a USR to find all usage sites
+4. Use `symbolAtPosition` when you're reading a file and need the USR at a specific position
+5. Use `symbolsInFile` to get a file's structure without reading the full source
+6. Call `refreshIndex` after a build to pick up changes
+```
 
 ## Tools (invoked by the agent)
 
