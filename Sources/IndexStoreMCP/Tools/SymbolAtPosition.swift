@@ -15,30 +15,36 @@ func handleSymbolAtPosition(_ args: [String: Value], indexStore: IndexStore) asy
         return .failure("Missing required argument: line (must be an integer)")
     }
     
+    guard let column = args["column"]?.intValue else {
+        return .failure("Missing required argument: column (must be an integer, 1-based UTF-8 offset)")
+    }
+    
     let includeSystem = args["includeSystem"]?.boolValue ?? false
     
-    let atLine = database.symbolOccurrences(inFilePath: file)
+    let onLine = database.symbolOccurrences(inFilePath: file)
         .filter { $0.location.line == line }
         .filter { includeSystem || !$0.location.isSystem }
-        .sorted { $0.location.utf8Column < $1.location.utf8Column }
     
-    guard !atLine.isEmpty else {
-        return .success("No symbols found at \(file):\(line). The file may not be indexed — try rebuilding the project and calling refreshIndex.")
+    // Find the closest symbol at or before the requested column.
+    guard let match = onLine
+        .filter({ $0.location.utf8Column <= column })
+        .max(by: { $0.location.utf8Column < $1.location.utf8Column })
+    else {
+        return .success("No symbol found at \(file):\(line):\(column). The file may not be indexed — try rebuilding the project and calling refreshIndex.")
     }
     
-    let items: [[String: Any]] = atLine.map { occurrence in
-        var dict: [String: Any] = [
-            "column": occurrence.location.utf8Column,
-            "usr":    occurrence.symbol.usr,
-            "name":   occurrence.symbol.name,
-            "kind":   String(describing: occurrence.symbol.kind),
-        ]
-        if occurrence.symbol.subKind != .none {
-            dict["subKind"] = String(describing: occurrence.symbol.subKind)
-        }
-        return dict
+    var dict: [String: Any] = [
+        "line":   match.location.line,
+        "column": match.location.utf8Column,
+        "usr":    match.symbol.usr,
+        "name":   match.symbol.name,
+        "kind":   String(describing: match.symbol.kind),
+        "role":   String(describing: match.roles),
+    ]
+    if match.symbol.subKind != .none {
+        dict["subKind"] = String(describing: match.symbol.subKind)
     }
     
-    let data = try JSONSerialization.data(withJSONObject: items, options: .prettyPrinted)
-    return .success(String(data: data, encoding: .utf8) ?? "[]")
+    let data = try JSONSerialization.data(withJSONObject: dict, options: .prettyPrinted)
+    return .success(String(data: data, encoding: .utf8) ?? "{}")
 }

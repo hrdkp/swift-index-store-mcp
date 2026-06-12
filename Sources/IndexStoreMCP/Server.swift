@@ -93,7 +93,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                 ),
                 Tool(
                     name: ToolName.symbolAtPosition.rawValue,
-                    description: "Use when reading a file and you want the USR of a symbol at a specific line. More precise than searchSymbol when the name is ambiguous (e.g. init).",
+                    description: "Use when reading a file and you want the USR of a symbol at a specific position. More precise than searchSymbol when the name is ambiguous (e.g. init). Returns the single closest symbol at or before the given column.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([
@@ -105,12 +105,16 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                                 "type": .string("integer"),
                                 "description": .string("1-based line number"),
                             ]),
+                            "column": .object([
+                                "type": .string("integer"),
+                                "description": .string("1-based UTF-8 column offset"),
+                            ]),
                             "includeSystem": .object([
                                 "type": .string("boolean"),
                                 "description": .string("If true, include matches in system frameworks (UIKit, Foundation, etc.). Defaults to false."),
                             ]),
                         ]),
-                        "required": .array([.string("file"), .string("line")]),
+                        "required": .array([.string("file"), .string("line"), .string("column")]),
                     ])
                 ),
                 Tool(
