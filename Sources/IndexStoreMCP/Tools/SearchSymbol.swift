@@ -12,12 +12,14 @@ func handleSearchSymbol(_ args: [String: Value], indexStore: IndexStore) async t
     }
     
     let includeSystem = args["includeSystem"]?.boolValue ?? false
+    let includeStale = args["includeStale"]?.boolValue ?? false
     
     var all = database.canonicalOccurrences(ofName: name)
-    var results = all.filter { includeSystem || !$0.location.isSystem }
+    var nonSystem = all.filter { includeSystem || !$0.location.isSystem }
+    var results = nonSystem.filter { includeStale || !$0.isStale(in: database) }
     
-    // Exact match failed — try prefix match to handle bare method names
-    // (e.g. "reserveLoading" → "reserveLoading(workspacePath:)").
+    // Exact match failed (or was entirely stale) — try prefix match to handle
+    // bare method names (e.g. "reserveLoading" → "reserveLoading(workspacePath:)").
     if results.isEmpty {
         all = database.canonicalOccurrences(
             containing: name,
@@ -26,7 +28,8 @@ func handleSearchSymbol(_ args: [String: Value], indexStore: IndexStore) async t
             subsequence: false,
             ignoreCase: false
         )
-        results = all.filter { includeSystem || !$0.location.isSystem }
+        nonSystem = all.filter { includeSystem || !$0.location.isSystem }
+        results = nonSystem.filter { includeStale || !$0.isStale(in: database) }
         
         if results.isEmpty {
             return .success("No match found for '\(name)'. Try searchSymbolPattern with a partial name.")
@@ -34,6 +37,6 @@ func handleSearchSymbol(_ args: [String: Value], indexStore: IndexStore) async t
     }
     
     let items: [[String: String]] = results.map { $0.toCanonicalDict() }
-    let output = try formatOccurrenceJSON(items, systemCount: all.count - results.count)
+    let output = try formatOccurrenceJSON(items, systemCount: all.count - nonSystem.count, staleCount: nonSystem.count - results.count)
     return .success(output)
 }

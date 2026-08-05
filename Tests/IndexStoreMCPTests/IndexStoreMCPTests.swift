@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 import MCP
+@preconcurrency import IndexStoreDB
 
 @testable import IndexStoreMCP
 
@@ -277,5 +278,109 @@ struct IndexStoreActorTests {
         } else {
             Issue.record("Expected .alreadyLoaded, got \(result)")
         }
+    }
+}
+
+// MARK: - staleness checks (isOrphaned / isOutOfDate / isStale)
+
+private func makeOccurrence(path: String) -> SymbolOccurrence {
+    SymbolOccurrence(
+        symbol: Symbol(usr: "s:test", name: "Test", kind: .struct, language: .swift),
+        location: SymbolLocation(path: path, timestamp: .distantPast, moduleName: "Test", line: 1, utf8Column: 1),
+        roles: .definition,
+        symbolProvider: .swift
+    )
+}
+
+@Suite("staleness checks")
+struct StalenessTests {
+    @Test func isOrphanedForPathThatNeverExisted() {
+        let occurrence = makeOccurrence(path: "/nonexistent/path/Ghost.swift")
+        #expect(occurrence.isOrphaned)
+    }
+    
+    @Test func isOrphanedForDeletedFile() throws {
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("Deleted-\(UUID()).swift")
+        try "// temp".write(to: tempURL, atomically: true, encoding: .utf8)
+        try FileManager.default.removeItem(at: tempURL)
+        
+        let occurrence = makeOccurrence(path: tempURL.path)
+        #expect(occurrence.isOrphaned)
+    }
+    
+    @Test func notOrphanedForExistingFile() throws {
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("Existing-\(UUID()).swift")
+        try "// temp".write(to: tempURL, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+        
+        let occurrence = makeOccurrence(path: tempURL.path)
+        #expect(!occurrence.isOrphaned)
+    }
+    
+    @Test func outOfDateForFileWithNoCurrentUnit() async throws {
+        let store = try await loadedIndexStore()
+        let database = try #require(await store.database)
+        
+        // A path IndexStoreDB has never seen a unit for — same signal as a
+        // file dropped from target membership without being deleted.
+        let occurrence = makeOccurrence(path: "/tmp/never-indexed-\(UUID()).swift")
+        #expect(occurrence.isOutOfDate(in: database))
+        #expect(occurrence.isStale(in: database))
+    }
+    
+    @Test func notOutOfDateForUnmodifiedIndexedFile() async throws {
+        let store = try await loadedIndexStore()
+        let database = try #require(await store.database)
+        
+        // indexStoreFile is a real source file in this project's own index,
+        // untouched since the last build — the normal in-sync case.
+        let occurrence = makeOccurrence(path: indexStoreFile)
+        #expect(!occurrence.isOrphaned)
+        #expect(!occurrence.isOutOfDate(in: database))
+        #expect(!occurrence.isStale(in: database))
+    }
+    
+    @Test func outOfDateForFileEditedSinceLastIndexed() async throws {
+        let store = try await loadedIndexStore()
+        let database = try #require(await store.database)
+        
+        // A file this suite doesn't share with other tests, so bumping its
+        // mtime can't race a concurrently-running test that reads it.
+        let trackedFile = "\(workspacePath)/Sources/IndexStoreMCP/Tools/RoleMapping.swift"
+        let originalModDate = try #require(
+            FileManager.default.attributesOfItem(atPath: trackedFile)[.modificationDate] as? Date
+        )
+        defer {
+            try? FileManager.default.setAttributes([.modificationDate: originalModDate], ofItemAtPath: trackedFile)
+        }
+        let future = Date().addingTimeInterval(60 * 60 * 24 * 365)
+        try FileManager.default.setAttributes([.modificationDate: future], ofItemAtPath: trackedFile)
+        
+        let occurrence = makeOccurrence(path: trackedFile)
+        #expect(!occurrence.isOrphaned)
+        #expect(occurrence.isOutOfDate(in: database))
+        #expect(occurrence.isStale(in: database))
+    }
+}
+
+// MARK: - stale-count note in formatOccurrenceJSON
+
+@Suite("formatOccurrenceJSON stale note")
+struct FormatOccurrenceJSONStaleTests {
+    @Test func appendsNoteAndCountWhenStaleExcluded() throws {
+        let output = try formatOccurrenceJSON([["name": "Foo"]], systemCount: 0, staleCount: 3)
+        #expect(output.contains("3 stale occurrence(s) excluded"))
+        #expect(output.contains("includeStale: true"))
+    }
+    
+    @Test func omitsNoteWhenNothingStaleExcluded() throws {
+        let output = try formatOccurrenceJSON([["name": "Foo"]], systemCount: 0, staleCount: 0)
+        #expect(!output.contains("stale occurrence"))
+    }
+    
+    @Test func includesBothNotesWhenSystemAndStaleExcluded() throws {
+        let output = try formatOccurrenceJSON([["name": "Foo"]], systemCount: 2, staleCount: 1)
+        #expect(output.contains("2 system framework occurrence(s) excluded"))
+        #expect(output.contains("1 stale occurrence(s) excluded"))
     }
 }

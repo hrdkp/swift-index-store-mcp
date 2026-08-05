@@ -20,17 +20,19 @@ func handleSymbolAtPosition(_ args: [String: Value], indexStore: IndexStore) asy
     }
     
     let includeSystem = args["includeSystem"]?.boolValue ?? false
+    let includeStale = args["includeStale"]?.boolValue ?? false
     
     let onLine = database.symbolOccurrences(inFilePath: file)
         .filter { $0.location.line == line }
         .filter { includeSystem || !$0.location.isSystem }
+        .filter { includeStale || !$0.isStale(in: database) }
     
     // Find the closest symbol at or before the requested column.
     guard let match = onLine
         .filter({ $0.location.utf8Column <= column })
         .max(by: { $0.location.utf8Column < $1.location.utf8Column })
     else {
-        return .success("No symbol found at \(file):\(line):\(column). The file may not be indexed — try rebuilding the project and calling refreshIndex.")
+        return .success("No symbol found at \(file):\(line):\(column). The file may not be indexed, or the only match here is stale (source edited since last indexed) — try rebuilding the project and calling refreshIndex, or pass includeStale: true.")
     }
     
     var dict: [String: Any] = [
