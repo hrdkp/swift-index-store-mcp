@@ -19,7 +19,10 @@ let package = Package(
         ),
         .testTarget(
             name: "IndexStoreMCPTests",
-            dependencies: ["IndexStoreMCP"]
+            dependencies: [
+                "IndexStoreMCP",
+                .product(name: "IndexStoreDB", package: "indexstore-db"),
+            ]
         ),
     ]
 )

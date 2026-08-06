@@ -18,10 +18,12 @@ func handleGetOccurrences(_ args: [String: Value], indexStore: IndexStore) async
     }
     
     let includeSystem = args["includeSystem"]?.boolValue ?? false
+    let includeStale = args["includeStale"]?.boolValue ?? false
     
     let all = database.occurrences(ofUSR: usr, roles: roles)
-    let results = all
-        .filter { includeSystem || !$0.location.isSystem }
+    let nonSystem = all.filter { includeSystem || !$0.location.isSystem }
+    let results = nonSystem
+        .filter { includeStale || !$0.isStale(in: database) }
         .sorted { ($0.location.path, $0.location.line) < ($1.location.path, $1.location.line) }
     
     if results.isEmpty && all.isEmpty {
@@ -30,6 +32,6 @@ func handleGetOccurrences(_ args: [String: Value], indexStore: IndexStore) async
     
     let occurrenceList: [[String: Any]] = results.map { $0.toDetailedDict() }
     
-    let output = try formatOccurrenceJSON(occurrenceList, systemCount: all.count - results.count)
+    let output = try formatOccurrenceJSON(occurrenceList, systemCount: all.count - nonSystem.count, staleCount: nonSystem.count - results.count)
     return .success(output)
 }

@@ -18,10 +18,12 @@ func handleSymbolsInFile(_ args: [String: Value], indexStore: IndexStore) async 
     }
     
     let includeSystem = args["includeSystem"]?.boolValue ?? false
+    let includeStale = args["includeStale"]?.boolValue ?? false
     
     let all = database.symbolOccurrences(inFilePath: file)
     let roleFiltered = all.filter { !$0.roles.intersection(roles).isEmpty }
-    let results = roleFiltered.filter { includeSystem || !$0.location.isSystem }
+    let nonSystem = roleFiltered.filter { includeSystem || !$0.location.isSystem }
+    let results = nonSystem.filter { includeStale || !$0.isStale(in: database) }
     if results.isEmpty && all.isEmpty {
         return .success("No symbols found in this file. The file may not be indexed — try rebuilding the project and calling refreshIndex.")
     }
@@ -43,6 +45,6 @@ func handleSymbolsInFile(_ args: [String: Value], indexStore: IndexStore) async 
         return dict
     }
     
-    let output = try formatOccurrenceJSON(items, systemCount: roleFiltered.count - results.count)
+    let output = try formatOccurrenceJSON(items, systemCount: roleFiltered.count - nonSystem.count, staleCount: nonSystem.count - results.count)
     return .success(output)
 }

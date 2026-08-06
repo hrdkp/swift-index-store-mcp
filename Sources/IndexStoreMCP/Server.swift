@@ -53,6 +53,10 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                                 "type": .string("boolean"),
                                 "description": .string("If true, include matches in system frameworks (UIKit, Foundation, etc.). Defaults to false."),
                             ]),
+                            "includeStale": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include matches whose source file was deleted/renamed, dropped from the build, or edited since last indexed. Defaults to false."),
+                            ]),
                         ]),
                         "required": .array([.string("name")]),
                     ])
@@ -87,6 +91,10 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                                 "type": .string("boolean"),
                                 "description": .string("If true, include matches in system frameworks (UIKit, Foundation, etc.). Defaults to false."),
                             ]),
+                            "includeStale": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include matches whose source file was deleted/renamed, dropped from the build, or edited since last indexed. Defaults to false."),
+                            ]),
                         ]),
                         "required": .array([.string("pattern")]),
                     ])
@@ -113,6 +121,10 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                                 "type": .string("boolean"),
                                 "description": .string("If true, include matches in system frameworks (UIKit, Foundation, etc.). Defaults to false."),
                             ]),
+                            "includeStale": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include matches whose source file was deleted/renamed, dropped from the build, or edited since last indexed. Defaults to false."),
+                            ]),
                         ]),
                         "required": .array([.string("file"), .string("line"), .string("column")]),
                     ])
@@ -135,6 +147,10 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                             "includeSystem": .object([
                                 "type": .string("boolean"),
                                 "description": .string("If true, include occurrences in system frameworks (UIKit, Foundation, etc.). Defaults to false."),
+                            ]),
+                            "includeStale": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include occurrences whose source file was deleted/renamed, dropped from the build, or edited since last indexed. Defaults to false."),
                             ]),
                         ]),
                         "required": .array([.string("usr")]),
@@ -159,6 +175,10 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                                 "type": .string("boolean"),
                                 "description": .string("If true, include occurrences in system frameworks (UIKit, Foundation, etc.). Defaults to false."),
                             ]),
+                            "includeStale": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include occurrences whose source file was deleted/renamed, dropped from the build, or edited since last indexed. Defaults to false."),
+                            ]),
                         ]),
                         "required": .array([.string("usr")]),
                     ])
@@ -181,6 +201,10 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                             "includeSystem": .object([
                                 "type": .string("boolean"),
                                 "description": .string("If true, include occurrences in system frameworks (UIKit, Foundation, etc.). Defaults to false."),
+                            ]),
+                            "includeStale": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include occurrences whose source file was deleted/renamed, dropped from the build, or edited since last indexed. Defaults to false."),
                             ]),
                         ]),
                         "required": .array([.string("file")]),
