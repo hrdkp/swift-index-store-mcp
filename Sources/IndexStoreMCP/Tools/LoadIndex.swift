@@ -44,7 +44,7 @@ func handleLoadIndex(_ args: [String: Value], indexStore: IndexStore) async thro
         
         // Use SHA-256 of the workspace path as the cache dir name to avoid length/character issues.
         let cacheBaseURL = try fm.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-            .appendingPathComponent("IndexStoreMCP")
+            .appendingPathComponent(BuildInfo.name)
         let hashHex = SHA256.hash(data: Data(workspacePath.utf8)).map { String(format: "%02x", $0) }.joined()
         let dbURL = cacheBaseURL.appendingPathComponent(hashHex)
         try fm.createDirectory(at: dbURL, withIntermediateDirectories: true)
