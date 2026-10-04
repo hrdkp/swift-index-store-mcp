@@ -14,7 +14,6 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swiftlang/indexstore-db",
       "state" : {
-        "branch" : "main",
         "revision" : "4ee7a49edc48e94361c3477623deeffb25dbed0d"
       }
     },

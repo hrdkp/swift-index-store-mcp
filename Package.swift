@@ -10,7 +10,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0"),
         .package(url: "https://github.com/modelcontextprotocol/swift-sdk", from: "0.9.0"),
-        .package(url: "https://github.com/swiftlang/indexstore-db", branch: "main"),
+        .package(url: "https://github.com/swiftlang/indexstore-db", revision: "4ee7a49edc48e94361c3477623deeffb25dbed0d"),
     ],
     targets: [
         .executableTarget(
