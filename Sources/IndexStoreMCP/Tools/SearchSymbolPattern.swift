@@ -24,7 +24,7 @@ func handleSearchSymbolPattern(_ args: [String: Value], indexStore: IndexStore) 
         anchorEnd: anchorEnd,
         subsequence: subsequence,
         ignoreCase: ignoreCase
-    )
+    ).uniqued()
     let nonSystem = all.filter { includeSystem || !$0.location.isSystem }
     let results = nonSystem.filter { includeStale || !$0.isStale(in: database) }
     

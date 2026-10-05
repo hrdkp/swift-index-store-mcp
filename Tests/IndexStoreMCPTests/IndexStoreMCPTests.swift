@@ -400,17 +400,33 @@ struct CompactJSONTests {
         #expect(output == "[\n{\"file\":\"/a/b.swift\",\"name\":\"Foo\"},\n{\"file\":\"/c.swift\",\"name\":\"Bar\"}\n]")
     }
     
-    @Test func dropsExactDuplicatesKeepingOrder() throws {
-        let a = ["name": "A", "line": 1] as [String: Any]
-        let b = ["name": "B", "line": 2] as [String: Any]
-        let aOtherLine = ["name": "A", "line": 3] as [String: Any]
-        let output = try compactJSON([a, b, a, aOtherLine, b])
-        #expect(output == "[\n{\"line\":1,\"name\":\"A\"},\n{\"line\":2,\"name\":\"B\"},\n{\"line\":3,\"name\":\"A\"}\n]")
-    }
-    
     @Test func emptyArrayAndObject() throws {
         #expect(try compactJSON([Any]()) == "[]")
         #expect(try compactJSON(["line": 3, "kind": "class"]) == "{\"kind\":\"class\",\"line\":3}")
+    }
+}
+
+// MARK: - occurrence de-duplication
+
+@Suite("uniqued occurrences")
+struct UniquedOccurrenceTests {
+    private func occurrence(line: Int, module: String = "App", timestamp: Double = 0) -> SymbolOccurrence {
+        SymbolOccurrence(
+            symbol: Symbol(usr: "s:3App3FooC", name: "Foo", kind: .class, language: .swift),
+            location: SymbolLocation(path: "/src/Foo.swift", timestamp: Date(timeIntervalSince1970: timestamp), moduleName: module, line: line, utf8Column: 7),
+            roles: .reference,
+            symbolProvider: .swift
+        )
+    }
+    
+    @Test func dropsCopiesFromOtherUnits() {
+        let occurrences = [
+            occurrence(line: 1),
+            occurrence(line: 1, module: "AppTests", timestamp: 5),
+            occurrence(line: 2),
+            occurrence(line: 1, timestamp: 9),
+        ]
+        #expect(occurrences.uniqued().map(\.location.line) == [1, 2])
     }
 }
 

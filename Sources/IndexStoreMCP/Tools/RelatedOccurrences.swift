@@ -20,7 +20,7 @@ func handleRelatedOccurrences(_ args: [String: Value], indexStore: IndexStore) a
     let includeSystem = args["includeSystem"]?.boolValue ?? false
     let includeStale = args["includeStale"]?.boolValue ?? false
     
-    let all = database.occurrences(relatedToUSR: usr, roles: roles)
+    let all = database.occurrences(relatedToUSR: usr, roles: roles).uniqued()
     let nonSystem = all.filter { includeSystem || !$0.location.isSystem }
     let results = nonSystem
         .filter { includeStale || !$0.isStale(in: database) }

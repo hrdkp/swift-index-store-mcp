@@ -5,10 +5,6 @@ import IndexStoreDB
 /// Tool output goes straight into the agent's context, so whitespace and `\/`
 /// escapes in every file path are pure token cost. Arrays put one element per
 /// line, which stays readable for almost no extra size.
-///
-/// Identical array elements are dropped, keeping the first. The index holds one
-/// unit per build variant (e.g. per architecture, or per target sharing a file),
-/// and each unit reports the same occurrence, so exact duplicates are common.
 func compactJSON(_ object: Any) throws -> String {
     let options: JSONSerialization.WritingOptions = [.sortedKeys, .withoutEscapingSlashes]
     func encode(_ value: Any) throws -> String {
@@ -16,9 +12,7 @@ func compactJSON(_ object: Any) throws -> String {
     }
     guard let array = object as? [Any] else { return try encode(object) }
     if array.isEmpty { return "[]" }
-    var seen = Set<String>()
-    let lines = try array.map(encode).filter { seen.insert($0).inserted }
-    return "[\n" + lines.joined(separator: ",\n") + "\n]"
+    return "[\n" + (try array.map(encode)).joined(separator: ",\n") + "\n]"
 }
 
 /// Serialises `object` with `compactJSON` and, when `systemCount > 0`
@@ -32,6 +26,49 @@ func formatOccurrenceJSON(_ object: Any, systemCount: Int, staleCount: Int = 0) 
         text += "\n\nNote: \(staleCount) stale occurrence(s) excluded (source file deleted/renamed, dropped from the build, or edited since last indexed). Run refreshIndex, or rebuild the project, to pick up current data. Pass includeStale: true to include them."
     }
     return text
+}
+
+extension Array where Element == SymbolOccurrence {
+    /// Drops occurrences that differ only in which index unit reported them,
+    /// keeping the first. The index holds one unit per build variant (e.g. per
+    /// architecture, or per target sharing a file), and each reports the same
+    /// occurrence with its own unit timestamp and module name. Call this on a
+    /// query's raw results, before filtering, so result rows and the
+    /// excluded-occurrence counts in `formatOccurrenceJSON` notes agree.
+    ///
+    /// Safe for staleness: `isStale(in:)` uses the newest unit for the file,
+    /// not the occurrence's own timestamp, so duplicates are all stale or none.
+    func uniqued() -> [SymbolOccurrence] {
+        var seen = Set<OccurrenceKey>()
+        return filter { seen.insert(OccurrenceKey($0)).inserted }
+    }
+}
+
+/// Identity of an occurrence as the tools report it: everything except the
+/// reporting unit's `timestamp` and `moduleName`.
+private struct OccurrenceKey: Hashable {
+    let symbol: Symbol
+    let path: String
+    let line: Int
+    let column: Int
+    let isSystem: Bool
+    let roles: SymbolRole
+    let relations: [RelationKey]
+    
+    struct RelationKey: Hashable {
+        let symbol: Symbol
+        let roles: SymbolRole
+    }
+    
+    init(_ occurrence: SymbolOccurrence) {
+        symbol = occurrence.symbol
+        path = occurrence.location.path
+        line = occurrence.location.line
+        column = occurrence.location.utf8Column
+        isSystem = occurrence.location.isSystem
+        roles = occurrence.roles
+        relations = occurrence.relations.map { RelationKey(symbol: $0.symbol, roles: $0.roles) }
+    }
 }
 
 extension SymbolOccurrence {
