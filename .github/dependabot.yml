@@ -1,0 +1,20 @@
+# Opens PRs when dependencies have new versions. indexstore-db is pinned to a
+# raw revision, which Dependabot skips; the weekly libindexstore-compat workflow
+# covers it instead.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ['*']
+
+  - package-ecosystem: swift
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      swift-packages:
+        patterns: ['*']

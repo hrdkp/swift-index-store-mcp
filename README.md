@@ -108,7 +108,7 @@ It keeps its own lookup database in `~/Library/Caches/index-store-mcp`.
 
 ## Development
 
-See [TESTING.md](TESTING.md) for running the tests, and [CHANGELOG.md](CHANGELOG.md) for release history.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute, [TESTING.md](TESTING.md) for running the tests, and [CHANGELOG.md](CHANGELOG.md) for release history. To report a security issue, see [SECURITY.md](SECURITY.md).
 
 ## License
 
