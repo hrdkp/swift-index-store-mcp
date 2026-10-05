@@ -23,7 +23,7 @@ func handleSymbolsInFile(_ args: [String: Value], indexStore: IndexStore) async 
     let all = database.symbolOccurrences(inFilePath: file).uniqued()
     let roleFiltered = all.filter { !$0.roles.intersection(roles).isEmpty }
     let nonSystem = roleFiltered.filter { includeSystem || !$0.location.isSystem }
-    let results = nonSystem.filter { includeStale || !$0.isStale(in: database) }
+    let results = nonSystem.filter { includeStale || !$0.isStaleForFileQuery(in: database) }
     if results.isEmpty && all.isEmpty {
         return .success("No symbols found in this file. The file may not be indexed — try rebuilding the project and calling refreshIndex.")
     }

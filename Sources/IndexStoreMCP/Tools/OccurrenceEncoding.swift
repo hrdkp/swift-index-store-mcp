@@ -30,17 +30,30 @@ func formatOccurrenceJSON(_ object: Any, systemCount: Int, staleCount: Int = 0) 
 
 extension Array where Element == SymbolOccurrence {
     /// Drops occurrences that differ only in which index unit reported them,
-    /// keeping the first. The index holds one unit per build variant (e.g. per
-    /// architecture, or per target sharing a file), and each reports the same
-    /// occurrence with its own unit timestamp and module name. Call this on a
+    /// keeping the copy from the newest unit, in first-seen order. Xcode keeps
+    /// the units of every build variant and target that compiled a file, and
+    /// never removes old ones, so the same occurrence often comes back several
+    /// times with different unit timestamps and module names. Call this on a
     /// query's raw results, before filtering, so result rows and the
     /// excluded-occurrence counts in `formatOccurrenceJSON` notes agree.
     ///
-    /// Safe for staleness: `isStale(in:)` uses the newest unit for the file,
-    /// not the occurrence's own timestamp, so duplicates are all stale or none.
+    /// Keeping the newest copy matters for staleness: `isOutOfDate(in:)` judges
+    /// each occurrence by its own unit, so a fresh copy must win over a stale one.
     func uniqued() -> [SymbolOccurrence] {
-        var seen = Set<OccurrenceKey>()
-        return filter { seen.insert(OccurrenceKey($0)).inserted }
+        var newest: [OccurrenceKey: Int] = [:]
+        var result: [SymbolOccurrence] = []
+        for occurrence in self {
+            let key = OccurrenceKey(occurrence)
+            if let index = newest[key] {
+                if occurrence.location.timestamp > result[index].location.timestamp {
+                    result[index] = occurrence
+                }
+            } else {
+                newest[key] = result.count
+                result.append(occurrence)
+            }
+        }
+        return result
     }
 }
 
@@ -83,25 +96,44 @@ extension SymbolOccurrence {
     /// True when the file exists but this occurrence is no longer current:
     /// either no unit in `database` references the file anymore (e.g. it was
     /// dropped from target membership without being deleted), or the file was
-    /// edited more recently than the newest unit that indexed it.
+    /// edited after the unit that produced this occurrence was written.
     ///
-    /// Uses the latest unit date across *all* units for this path, rather than
-    /// this occurrence's own `location.timestamp`, so a file compiled into
-    /// multiple units (e.g. shared between an app and test target) isn't
-    /// flagged stale just because the specific unit that produced this
-    /// occurrence hasn't been rebuilt as recently as another one that has.
+    /// Judged per occurrence, by its own unit's `location.timestamp`. Xcode keeps
+    /// units from earlier builds and variants alongside current ones, so a file
+    /// with one fresh unit can still have old units whose line numbers no longer
+    /// match the source. `uniqued()` keeps the newest copy of each occurrence,
+    /// so an occurrence that a fresh unit still reports is never dropped.
     func isOutOfDate(in database: IndexStoreDB) -> Bool {
-        guard let latestUnitDate = database.dateOfLatestUnitFor(filePath: location.path) else {
+        guard database.dateOfLatestUnitFor(filePath: location.path) != nil else {
             return true
         }
         guard let sourceModDate = try? FileManager.default
             .attributesOfItem(atPath: location.path)[.modificationDate] as? Date
         else { return false } // already caught by isOrphaned if the file is gone
-        return sourceModDate > latestUnitDate
+        return sourceModDate > location.timestamp
     }
     
     func isStale(in database: IndexStoreDB) -> Bool {
         isOrphaned || isOutOfDate(in: database)
+    }
+    
+    /// Staleness for results of `symbolOccurrences(inFilePath:)`, judged by the
+    /// file's newest unit rather than this occurrence's own unit.
+    ///
+    /// That query reads only the first unit IndexStoreDB finds for the file,
+    /// which may be an old one, so judging by the occurrence's unit would mark
+    /// a whole outline stale even when a fresh unit exists. This keeps such
+    /// results visible, at the cost of possibly outdated line numbers, until
+    /// file queries read the newest unit directly.
+    func isStaleForFileQuery(in database: IndexStoreDB) -> Bool {
+        if isOrphaned { return true }
+        guard let latestUnitDate = database.dateOfLatestUnitFor(filePath: location.path) else {
+            return true
+        }
+        guard let sourceModDate = try? FileManager.default
+            .attributesOfItem(atPath: location.path)[.modificationDate] as? Date
+        else { return false }
+        return sourceModDate > latestUnitDate
     }
 }
 

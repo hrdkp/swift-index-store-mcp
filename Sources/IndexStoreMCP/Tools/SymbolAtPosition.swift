@@ -25,7 +25,7 @@ func handleSymbolAtPosition(_ args: [String: Value], indexStore: IndexStore) asy
     let onLine = database.symbolOccurrences(inFilePath: file)
         .filter { $0.location.line == line }
         .filter { includeSystem || !$0.location.isSystem }
-        .filter { includeStale || !$0.isStale(in: database) }
+        .filter { includeStale || !$0.isStaleForFileQuery(in: database) }
     
     // Find the closest symbol at or before the requested column.
     guard let match = onLine
