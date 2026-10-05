@@ -3,4 +3,7 @@
 enum BuildInfo {
     static let name = "index-store-mcp"
     static let version = "0.1.0"
+    /// Oldest Xcode whose libIndexStore exports every function the pinned
+    /// indexstore-db requires. CI checks this against ci/libindexstore-floor.symbols.
+    static let minimumXcode = "16.0"
 }

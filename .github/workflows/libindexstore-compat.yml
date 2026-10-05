@@ -1,0 +1,41 @@
+name: libIndexStore compatibility
+
+# The pin and the floor snapshot only change in commits, which test.yml already
+# checks. This job watches what changes without a commit: the Xcodes on the
+# runner image and upstream indexstore-db. A failed scheduled run emails the
+# person who last edited the schedule.
+on:
+  schedule:
+    - cron: '0 14 * * 1'  # Mondays 14:00 UTC
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve pinned indexstore-db
+        run: swift package resolve
+
+      # Fails if a newer Xcode on the runner exports functions the pin never
+      # loads: upstream has likely moved on and the pin is getting stale.
+      - name: Pinned revision vs every Xcode on the runner
+        run: |
+          status=0
+          for app in $(for a in /Applications/Xcode*.app; do realpath "$a"; done | sort -u); do
+            lib="$app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/libIndexStore.dylib"
+            [[ -f "$lib" ]] || continue
+            echo "::group::$(basename "$app")"
+            scripts/check-libindexstore.sh --strict "$lib" || status=1
+            echo "::endgroup::"
+          done
+          exit $status
+
+      # Fails if bumping the pin to upstream main would require a newer Xcode
+      # than BuildInfo.minimumXcode, so you hear about it before the bump PR.
+      - name: Upstream indexstore-db main vs floor
+        run: |
+          git clone --quiet --depth 1 https://github.com/swiftlang/indexstore-db "$RUNNER_TEMP/indexstore-db"
+          echo "upstream main: $(git -C "$RUNNER_TEMP/indexstore-db" rev-parse HEAD)"
+          INDEXSTORE_DB_DIR="$RUNNER_TEMP/indexstore-db" scripts/check-libindexstore.sh

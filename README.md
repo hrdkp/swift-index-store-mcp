@@ -16,8 +16,7 @@ For small projects, `grep` and file reading are usually fast enough. This MCP pa
 
 ## Prerequisites
 
-- **macOS 14+**
-- **Xcode** installed (provides `libIndexStore.dylib`)
+- **Xcode 16+** selected via `xcode-select` or `DEVELOPER_DIR` (provides `libIndexStore.dylib`); this implies macOS 14.5+
 - The target project must have been **built in Xcode** at least once so the index store exists in DerivedData
 
 ## Setup

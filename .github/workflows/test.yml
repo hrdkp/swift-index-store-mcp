@@ -24,3 +24,12 @@ jobs:
 
       - name: Run tests
         run: swift test
+
+      - name: Check libIndexStore floor and ceiling
+        run: scripts/check-libindexstore.sh
+
+      - name: Build release binary
+        run: swift build -c release
+
+      - name: Smoke-test release binary
+        run: scripts/smoke-test.sh "$(swift build -c release --show-bin-path)/index-store-mcp"
