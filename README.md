@@ -74,94 +74,23 @@ To use a different Xcode than the one `xcode-select` points to, add `"env": { "D
 
 ## Configure your agent
 
-Adding the server makes the tools *available*, but agents often default to `grep` unless told otherwise. Append the bundled instructions to your project's `CLAUDE.md` (or `AGENTS.md`, or your agent's equivalent):
+Adding the server makes the tools *available*, but agents often default to `grep` unless told otherwise. Append the bundled instructions to your project's `CLAUDE.md` (or `AGENTS.md`, or your agent's equivalent). Run this once; running it again adds a second copy:
 
 ```sh
 index-store-mcp --print-agent-instructions >> CLAUDE.md
 ```
 
-## Tools
+## What your agent can ask
 
-### loadIndex
+| Question | Tool |
+|---|---|
+| Where is `PaymentService` defined, and what's its USR? | `searchSymbol`, or `searchSymbolPattern` for a partial name |
+| What does `configure` at line 42 of this file refer to? | `symbolAtPosition` |
+| Who calls this method? Where is this property read? | `getOccurrences` |
+| What conforms to this protocol, overrides this method, or extends this type? | `relatedOccurrences` |
+| What's in this 2,000-line file, without reading all of it? | `symbolsInFile` |
 
-Must be called first, once per session. Loads the Xcode index for a project.
-
-```
-workspacePath: "/path/to/MyApp.xcworkspace"
-```
-
-Accepts `.xcworkspace`, `.xcodeproj`, or a bare directory (for Swift packages opened in Xcode). The result names the index store and the `libIndexStore.dylib` it used.
-
-### searchSymbol
-
-Looks up a symbol by its exact name as it appears in source code. Returns one or more USRs (Unified Symbol Resolutions) that uniquely identify the symbol. Falls back to prefix matching if there is no exact match.
-
-```
-name: "viewDidLoad"
-```
-
-### searchSymbolPattern
-
-Fuzzy search when you only know a partial name. Supports subsequence matching — `mvc` finds `MyViewController`, `vdl` finds `viewDidLoad`. Narrow results with `anchorStart`, `anchorEnd`, `subsequence`, and `ignoreCase`.
-
-```
-pattern: "mvc"
-```
-
-### symbolAtPosition
-
-Returns the symbol at a specific file location. More precise than `searchSymbol` when the name is ambiguous (e.g., `init`).
-
-```
-file: "/path/to/MyFile.swift", line: 42, column: 10
-```
-
-### getOccurrences
-
-Given a USR, returns every location where that symbol is defined, referenced, or called. Filter with `roles` (`definition`, `reference`, `call`, etc.).
-
-```
-usr: "s:13MyApp0A14ViewControllerC"
-```
-
-### relatedOccurrences
-
-Finds structural relationships: protocol conformances, method overrides, type extensions. Use it before refactoring a protocol or base class.
-
-```
-usr: "s:13MyApp0A8ProtocolP"
-```
-
-### symbolsInFile
-
-Returns a structural outline of the symbols in a file — names, kinds, USRs, and line numbers.
-
-```
-file: "/path/to/MyFile.swift"
-```
-
-### refreshIndex
-
-Picks up index changes after a build. Call it when query results may be stale.
-
-All query tools filter out system framework symbols (UIKit, Foundation, etc.) and stale results by default. Pass `includeSystem: true` or `includeStale: true` to include them.
-
-## Typical agent workflow
-
-```
-loadIndex(workspacePath: "/path/to/MyApp.xcworkspace")
-  → "Index loaded"
-
-searchSymbol(name: "AppDelegate")
-  → [{ usr: "s:5MyApp0A8DelegateC", kind: "class", location: "AppDelegate.swift:3" }]
-
-getOccurrences(usr: "s:5MyApp0A8DelegateC", roles: ["reference"])
-  → [{ file: "main.swift", line: 12, role: "reference" }, ...]
-
-symbolsInFile(file: "/path/to/AppDelegate.swift")
-  → [{ name: "AppDelegate", kind: "class", line: 3 },
-     { name: "application(_:didFinishLaunchingWithOptions:)", kind: "instanceMethod", line: 5 }, ...]
-```
+The agent calls `loadIndex` once per session first, and `refreshIndex` after a build. Each tool's parameters and usage are described to the agent by the server itself.
 
 ## How it works
 

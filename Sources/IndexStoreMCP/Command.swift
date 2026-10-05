@@ -30,7 +30,9 @@ struct Command: AsyncParsableCommand {
         // Only the flag paths may write to stdout; server mode must never print,
         // since stdout carries the JSON-RPC stream.
         if printAgentInstructions {
-            print(AgentInstructions.text)
+            // Leading blank line so `>> CLAUDE.md` never joins the heading onto
+            // the file's last line when it lacks a trailing newline.
+            print("\n" + AgentInstructions.text)
             return
         }
         let indexStore = IndexStore()
