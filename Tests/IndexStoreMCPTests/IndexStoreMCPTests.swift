@@ -31,6 +31,16 @@ extension CallTool.Result {
     var isFailure: Bool { isError == true }
 }
 
+/// USR of the `IndexStore` actor, looked up rather than hard-coded: its module
+/// segment depends on the Xcode version that built the index (Xcode 26 names the
+/// module after the `index-store-mcp` product, Xcode 27 after the target).
+private func indexStoreActorUSR(in store: IndexStore) async throws -> String {
+    let database = try #require(await store.database)
+    let definition = database.canonicalOccurrences(ofName: "IndexStore")
+        .first { $0.location.path == indexStoreFile }
+    return try #require(definition?.symbol.usr, "IndexStore actor not found in \(indexStoreFile)")
+}
+
 private func loadedIndexStore() async throws -> IndexStore {
     let store = IndexStore()
     let result = try await handleLoadIndex(
@@ -106,7 +116,7 @@ struct SearchSymbolTests {
             indexStore: store
         )
         #expect(!result.isFailure)
-        #expect(result.text.contains("s:13IndexStoreMCP0aB0C"))
+        #expect(result.text.contains(try await indexStoreActorUSR(in: store)))
     }
     
     @Test func returnsMessageForUnknownSymbol() async throws {
@@ -211,9 +221,8 @@ struct SymbolsInFileTests {
 struct GetOccurrencesTests {
     @Test func findsOccurrencesForKnownUSR() async throws {
         let store = try await loadedIndexStore()
-        // USR for the IndexStore actor
         let result = try await handleGetOccurrences(
-            ["usr": .string("s:13IndexStoreMCP0aB0C")],
+            ["usr": .string(try await indexStoreActorUSR(in: store))],
             indexStore: store
         )
         #expect(!result.isFailure)
@@ -233,7 +242,7 @@ struct GetOccurrencesTests {
     @Test func rejectsUnknownRoles() async throws {
         let store = try await loadedIndexStore()
         let result = try await handleGetOccurrences(
-            ["usr": .string("s:13IndexStoreMCP0aB0C"), "roles": .array([.string("madeUpRole")])],
+            ["usr": .string(try await indexStoreActorUSR(in: store)), "roles": .array([.string("madeUpRole")])],
             indexStore: store
         )
         #expect(result.isFailure)
