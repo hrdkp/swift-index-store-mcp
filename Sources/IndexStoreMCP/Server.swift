@@ -158,7 +158,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                 ),
                 Tool(
                     name: ToolName.relatedOccurrences.rawValue,
-                    description: "Find structural relationships for a symbol by USR: protocol conformances, method overrides, type extensions. Answers \"what will break if I change this?\" — use it before refactoring a protocol, base class, or overridable method so every conforming type and override is found.",
+                    description: "Find structural relationships for a symbol by USR. For a protocol: every conforming type, including indirect ones through sub-protocols. For a class: every subclass, including indirect ones. For a protocol, class, struct, or enum: its extensions. In those results, each entry is a reference to the symbol; its `relations` names the conforming type, subclass, or extension, and `via` names the sub-protocol or subclass an indirect result was reached through. For a method or property: its overrides and protocol-requirement implementations. Answers \"what will break if I change this?\" — use it before refactoring a protocol, base class, or overridable method.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([
@@ -169,7 +169,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                             "roles": .object([
                                 "type": .string("array"),
                                 "items": .object(["type": .string("string")]),
-                                "description": .string("Optional relation filter: overrideOf, baseOf, extendedBy, ibTypeOf, specializationOf, etc. Defaults to all relation roles."),
+                                "description": .string("Optional relation filter. For types and protocols: baseOf (conformances and subclasses) or extendedBy (extensions). For methods and properties: overrideOf, etc. Defaults to all."),
                             ]),
                             "includeSystem": .object([
                                 "type": .string("boolean"),

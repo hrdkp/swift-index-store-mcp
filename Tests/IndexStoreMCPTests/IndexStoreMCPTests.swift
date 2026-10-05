@@ -269,6 +269,66 @@ struct GetOccurrencesTests {
     }
 }
 
+// MARK: - relatedOccurrences
+
+/// Parsed rows of a relatedOccurrences result, with the system/stale note stripped.
+private func relatedRows(_ args: [String: Value], store: IndexStore) async throws -> [[String: Any]] {
+    let result = try await handleRelatedOccurrences(args, indexStore: store)
+    #expect(!result.isFailure, "relatedOccurrences failed: \(result.text)")
+    let json = result.text.components(separatedBy: "\n\nNote:")[0]
+    return try #require(JSONSerialization.jsonObject(with: Data(json.utf8)) as? [[String: Any]], "not a JSON array: \(result.text)")
+}
+
+private func relationNames(_ row: [String: Any]) -> [String] {
+    (row["relations"] as? [[String: Any]] ?? []).compactMap { $0["name"] as? String }
+}
+
+/// USR of the type or protocol named `name` whose definition is in a file ending with `fileSuffix`.
+private func typeUSR(_ name: String, definedIn fileSuffix: String, store: IndexStore) async throws -> String {
+    let database = try #require(await store.database)
+    let definition = database.canonicalOccurrences(ofName: name).first { $0.location.path.hasSuffix(fileSuffix) }
+    return try #require(definition?.symbol.usr, "\(name) not found in a file ending with \(fileSuffix)")
+}
+
+@Suite("relatedOccurrences")
+struct RelatedOccurrencesTests {
+    /// Command conforms to AsyncParsableCommand, which refines ParsableCommand,
+    /// which refines ParsableArguments, so Command is an indirect conformer.
+    @Test func protocolIncludesIndirectConformers() async throws {
+        let store = try await loadedIndexStore()
+        let usr = try await typeUSR("ParsableArguments", definedIn: "ParsableArguments.swift", store: store)
+        let rows = try await relatedRows(["usr": .string(usr)], store: store)
+        
+        let direct = try #require(rows.first { relationNames($0).contains("ParsableCommand") })
+        #expect(direct["via"] == nil)
+        let command = try #require(rows.first { relationNames($0).contains("Command") && ($0["file"] as? String)?.hasSuffix("Command.swift") == true })
+        #expect(command["role"] as? String == "[ref|baseOf]")
+        #expect(command["via"] as? String == "AsyncParsableCommand")
+    }
+    
+    @Test func typeListsItsExtensions() async throws {
+        let store = try await loadedIndexStore()
+        let usr = try await typeUSR("SymbolOccurrence", definedIn: "IndexStoreDB/SymbolOccurrence.swift", store: store)
+        let rows = try await relatedRows(["usr": .string(usr), "roles": .array([.string("extendedBy")])], store: store)
+        
+        let ours = rows.filter { ($0["file"] as? String)?.hasSuffix("OccurrenceEncoding.swift") == true }
+        #expect(ours.count == 2)
+        #expect(rows.allSatisfy { $0["role"] as? String == "[ref|extendedBy]" })
+    }
+    
+    /// Methods and properties keep the relatedTo path: implementations of a
+    /// protocol requirement are related to it with overrideOf.
+    @Test func requirementListsImplementations() async throws {
+        let store = try await loadedIndexStore()
+        let rows = try await relatedRows(["usr": .string("s:s23CustomStringConvertibleP11descriptionSSvp")], store: store)
+        
+        let implementation = rows.first {
+            ($0["file"] as? String)?.hasSuffix("LoadIndex.swift") == true && relationNames($0).contains("LoadIndexError")
+        }
+        #expect(implementation != nil, "LoadIndexError.description not found in \(rows.count) rows")
+    }
+}
+
 // MARK: - reserveLoad concurrency
 
 @Suite("IndexStore actor")
@@ -311,10 +371,10 @@ struct IndexStoreActorTests {
 
 // MARK: - staleness checks (isOrphaned / isOutOfDate / isStale)
 
-private func makeOccurrence(path: String) -> SymbolOccurrence {
+private func makeOccurrence(path: String, unitTimestamp: Date = .distantPast) -> SymbolOccurrence {
     SymbolOccurrence(
         symbol: Symbol(usr: "s:test", name: "Test", kind: .struct, language: .swift),
-        location: SymbolLocation(path: path, timestamp: .distantPast, moduleName: "Test", line: 1, utf8Column: 1),
+        location: SymbolLocation(path: path, timestamp: unitTimestamp, moduleName: "Test", line: 1, utf8Column: 1),
         roles: .definition,
         symbolProvider: .swift
     )
@@ -361,11 +421,31 @@ struct StalenessTests {
         let database = try #require(await store.database)
         
         // indexStoreFile is a real source file in this project's own index,
-        // untouched since the last build — the normal in-sync case.
-        let occurrence = makeOccurrence(path: indexStoreFile)
+        // untouched since the last build — the normal in-sync case. The
+        // occurrence comes from the file's newest unit, as a fresh one would.
+        let latestUnit = try #require(database.dateOfLatestUnitFor(filePath: indexStoreFile))
+        let occurrence = makeOccurrence(path: indexStoreFile, unitTimestamp: latestUnit)
         #expect(!occurrence.isOrphaned)
         #expect(!occurrence.isOutOfDate(in: database))
         #expect(!occurrence.isStale(in: database))
+    }
+    
+    /// Xcode keeps units from earlier builds next to current ones. An occurrence
+    /// from a unit written before the file's last edit is stale even when a
+    /// newer unit for the same file exists.
+    @Test func outOfDateForOccurrenceFromUnitOlderThanFile() async throws {
+        let store = try await loadedIndexStore()
+        let database = try #require(await store.database)
+        
+        let sourceModDate = try #require(
+            FileManager.default.attributesOfItem(atPath: indexStoreFile)[.modificationDate] as? Date
+        )
+        let occurrence = makeOccurrence(path: indexStoreFile, unitTimestamp: sourceModDate.addingTimeInterval(-60))
+        #expect(database.dateOfLatestUnitFor(filePath: indexStoreFile) != nil)
+        #expect(occurrence.isOutOfDate(in: database))
+        // File queries may return that old unit's copy, so they judge by the
+        // file's newest unit instead and keep the result.
+        #expect(!occurrence.isStaleForFileQuery(in: database))
     }
     
     @Test func outOfDateForFileEditedSinceLastIndexed() async throws {
@@ -427,6 +507,11 @@ struct UniquedOccurrenceTests {
             occurrence(line: 1, timestamp: 9),
         ]
         #expect(occurrences.uniqued().map(\.location.line) == [1, 2])
+    }
+    
+    @Test func keepsTheCopyFromTheNewestUnit() {
+        let occurrences = [occurrence(line: 1, timestamp: 1), occurrence(line: 1, timestamp: 9), occurrence(line: 1, timestamp: 5)]
+        #expect(occurrences.uniqued().map(\.location.timestamp) == [Date(timeIntervalSince1970: 9)])
     }
 }
 
