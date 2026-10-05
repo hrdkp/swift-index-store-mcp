@@ -1,5 +1,10 @@
 # index-store-mcp
 
+[![Release](https://img.shields.io/github/v/release/hrdkp/swift-index-store-mcp)](https://github.com/hrdkp/swift-index-store-mcp/releases/latest)
+[![Test](https://github.com/hrdkp/swift-index-store-mcp/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/hrdkp/swift-index-store-mcp/actions/workflows/test.yml)
+[![License](https://img.shields.io/github/license/hrdkp/swift-index-store-mcp)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Xcode%2016%2B-blue)
+
 An MCP server that gives coding agents semantic code navigation for Xcode projects. Instead of relying on `grep` and file reading, agents can look up symbols by name, find definitions and references by USR, trace protocol conformances and overrides, and get structural outlines of files — the same navigation that Xcode provides via Cmd+Click and Find Usages.
 
 Built on Apple's [IndexStoreDB](https://github.com/swiftlang/indexstore-db) library, which reads the index data that Xcode generates during builds.
@@ -20,7 +25,9 @@ For small projects, `grep` and file reading are usually fast enough. This MCP pa
 - **Xcode 16 or later**, selected with `xcode-select` or `DEVELOPER_DIR`. The server loads `libIndexStore.dylib` from the selected Xcode at runtime. Xcode 16 needs macOS 14.5 or later, so that is the effective macOS floor.
 - The target project must have been **built in Xcode** at least once, so its index store exists in DerivedData.
 
-## Install
+## Getting started
+
+### 1. Install
 
 ```sh
 brew install hrdkp/tap/index-store-mcp
@@ -40,7 +47,7 @@ Use the full path to the built binary in place of `/opt/homebrew/bin/index-store
 
 </details>
 
-## Configure your MCP client
+### 2. Add the server to your MCP client
 
 Use the absolute path: GUI apps such as Claude Desktop don't see your shell's `PATH`, so a bare `index-store-mcp` may not be found.
 
@@ -72,13 +79,15 @@ To use a different Xcode than the one `xcode-select` points to, add `"env": { "D
 
 </details>
 
-## Configure your agent
+### 3. Tell your agent to use it
 
-Adding the server makes the tools *available*, but agents often default to `grep` unless told otherwise. Append the bundled instructions to your project's `CLAUDE.md` (or `AGENTS.md`, or your agent's equivalent). Run this once; running it again adds a second copy:
+Adding the server makes the tools *available*, but agents often default to `grep` unless told otherwise. From your project's root, append the bundled instructions to its `CLAUDE.md` (or `AGENTS.md`, or your agent's equivalent). Run this once; running it again adds a second copy:
 
 ```sh
 index-store-mcp --print-agent-instructions >> CLAUDE.md
 ```
+
+**Try it:** build your project in Xcode once, then ask your agent something like "Find every type that conforms to `MyProtocol`." It should call `loadIndex` first, then answer from the index instead of searching with `grep`.
 
 ## How it works
 
