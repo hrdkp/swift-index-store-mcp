@@ -1,0 +1,75 @@
+name: Release
+
+# Push a tag matching BuildInfo.version (e.g. v0.1.0) to publish a GitHub release
+# with the arm64 binary. The Homebrew formula for it is printed to the job summary.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check tag matches BuildInfo.version
+        run: |
+          version="$(sed -nE 's/.*static let version = "([^"]+)".*/\1/p' Sources/IndexStoreMCP/BuildInfo.swift)"
+          [[ "$GITHUB_REF_NAME" == "v$version" ]] || { echo "::error::tag $GITHUB_REF_NAME does not match BuildInfo.version $version"; exit 1; }
+          grep -q "^## \[$version\]" CHANGELOG.md || { echo "::error::CHANGELOG.md has no section for $version"; exit 1; }
+          echo "VERSION=$version" >>"$GITHUB_ENV"
+
+      - name: Print Xcode version
+        run: xcodebuild -version
+
+      - name: Build with xcodebuild (generates index store)
+        run: xcodebuild build -scheme IndexStoreMCP -destination 'platform=macOS' -quiet
+
+      - name: Run tests
+        run: swift test
+
+      - name: Check libIndexStore floor and ceiling
+        run: scripts/check-libindexstore.sh
+
+      - name: Build release binary
+        run: |
+          swift build -c release --arch arm64
+          echo "BIN=$(swift build -c release --arch arm64 --show-bin-path)/index-store-mcp" >>"$GITHUB_ENV"
+
+      - name: Verify binary
+        run: |
+          [[ "$(lipo -archs "$BIN")" == "arm64" ]] || { echo "::error::expected arm64 only, got $(lipo -archs "$BIN")"; exit 1; }
+          codesign -v --verbose "$BIN"
+          [[ "$("$BIN" --version </dev/null)" == "$VERSION" ]] || { echo "::error::--version does not print $VERSION"; exit 1; }
+          scripts/smoke-test.sh "$BIN"
+
+      - name: Package
+        run: |
+          name="index-store-mcp-$VERSION-arm64-macos"
+          mkdir -p "dist/$name"
+          cp "$BIN" LICENSE README.md "dist/$name/"
+          tar -czf "dist/$name.tar.gz" -C "dist/$name" .
+          (cd dist && shasum -a 256 "$name.tar.gz" >"$name.tar.gz.sha256")
+          echo "TARBALL=dist/$name.tar.gz" >>"$GITHUB_ENV"
+          echo "SHA256=$(cut -d' ' -f1 "dist/$name.tar.gz.sha256")" >>"$GITHUB_ENV"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          awk -v v="$VERSION" '$0 ~ "^## \\[" v "\\]" {on=1; next} /^## \[/ {on=0} on' CHANGELOG.md >notes.md
+          gh release create "$GITHUB_REF_NAME" "$TARBALL" "$TARBALL.sha256" \
+            --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
+
+      - name: Homebrew formula
+        run: |
+          {
+            echo "### Homebrew formula"
+            echo "Copy to \`Formula/index-store-mcp.rb\` in \`hrdkp/homebrew-tap\`:"
+            echo '```ruby'
+            scripts/render-formula.sh "$VERSION" "$SHA256"
+            echo '```'
+          } >>"$GITHUB_STEP_SUMMARY"
