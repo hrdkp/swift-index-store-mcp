@@ -80,18 +80,6 @@ Adding the server makes the tools *available*, but agents often default to `grep
 index-store-mcp --print-agent-instructions >> CLAUDE.md
 ```
 
-## What your agent can ask
-
-| Question | Tool |
-|---|---|
-| Where is `PaymentService` defined, and what's its USR? | `searchSymbol`, or `searchSymbolPattern` for a partial name |
-| What does `configure` at line 42 of this file refer to? | `symbolAtPosition` |
-| Who calls this method? Where is this property read? | `getOccurrences` |
-| What conforms to this protocol, overrides this method, or extends this type? | `relatedOccurrences` |
-| What's in this 2,000-line file, without reading all of it? | `symbolsInFile` |
-
-The agent calls `loadIndex` once per session first, and `refreshIndex` after a build. Each tool's parameters and usage are described to the agent by the server itself.
-
 ## How it works
 
 When Xcode builds a project, the compiler writes symbol index data to `DerivedData/<project>/Index.noindex/DataStore`. index-store-mcp reads this data through IndexStoreDB, using the `libIndexStore.dylib` from your selected Xcode, and exposes it over the [Model Context Protocol](https://modelcontextprotocol.io) via stdio.
