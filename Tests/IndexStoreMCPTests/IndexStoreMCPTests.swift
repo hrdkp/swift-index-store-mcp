@@ -391,6 +391,29 @@ struct StalenessTests {
     }
 }
 
+// MARK: - compactJSON
+
+@Suite("compactJSON")
+struct CompactJSONTests {
+    @Test func oneSortedObjectPerLineWithUnescapedSlashes() throws {
+        let output = try compactJSON([["name": "Foo", "file": "/a/b.swift"], ["name": "Bar", "file": "/c.swift"]])
+        #expect(output == "[\n{\"file\":\"/a/b.swift\",\"name\":\"Foo\"},\n{\"file\":\"/c.swift\",\"name\":\"Bar\"}\n]")
+    }
+    
+    @Test func dropsExactDuplicatesKeepingOrder() throws {
+        let a = ["name": "A", "line": 1] as [String: Any]
+        let b = ["name": "B", "line": 2] as [String: Any]
+        let aOtherLine = ["name": "A", "line": 3] as [String: Any]
+        let output = try compactJSON([a, b, a, aOtherLine, b])
+        #expect(output == "[\n{\"line\":1,\"name\":\"A\"},\n{\"line\":2,\"name\":\"B\"},\n{\"line\":3,\"name\":\"A\"}\n]")
+    }
+    
+    @Test func emptyArrayAndObject() throws {
+        #expect(try compactJSON([Any]()) == "[]")
+        #expect(try compactJSON(["line": 3, "kind": "class"]) == "{\"kind\":\"class\",\"line\":3}")
+    }
+}
+
 // MARK: - stale-count note in formatOccurrenceJSON
 
 @Suite("formatOccurrenceJSON stale note")

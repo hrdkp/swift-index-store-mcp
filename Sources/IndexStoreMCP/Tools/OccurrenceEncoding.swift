@@ -1,10 +1,30 @@
 import Foundation
 import IndexStoreDB
 
-/// Serialises `object` to a pretty-printed JSON string and, when `systemCount > 0`
+/// Serialises `object` to compact JSON with sorted keys and unescaped slashes.
+/// Tool output goes straight into the agent's context, so whitespace and `\/`
+/// escapes in every file path are pure token cost. Arrays put one element per
+/// line, which stays readable for almost no extra size.
+///
+/// Identical array elements are dropped, keeping the first. The index holds one
+/// unit per build variant (e.g. per architecture, or per target sharing a file),
+/// and each unit reports the same occurrence, so exact duplicates are common.
+func compactJSON(_ object: Any) throws -> String {
+    let options: JSONSerialization.WritingOptions = [.sortedKeys, .withoutEscapingSlashes]
+    func encode(_ value: Any) throws -> String {
+        String(decoding: try JSONSerialization.data(withJSONObject: value, options: options), as: UTF8.self)
+    }
+    guard let array = object as? [Any] else { return try encode(object) }
+    if array.isEmpty { return "[]" }
+    var seen = Set<String>()
+    let lines = try array.map(encode).filter { seen.insert($0).inserted }
+    return "[\n" + lines.joined(separator: ",\n") + "\n]"
+}
+
+/// Serialises `object` with `compactJSON` and, when `systemCount > 0`
 /// or `staleCount > 0`, appends a note explaining what was excluded.
 func formatOccurrenceJSON(_ object: Any, systemCount: Int, staleCount: Int = 0) throws -> String {
-    var text = String(data: try JSONSerialization.data(withJSONObject: object, options: .prettyPrinted), encoding: .utf8) ?? "[]"
+    var text = try compactJSON(object)
     if systemCount > 0 {
         text += "\n\nNote: \(systemCount) system framework occurrence(s) excluded. Pass includeSystem: true to include them."
     }
