@@ -7,12 +7,17 @@
 #   Ceiling: functions the selected (newest) Xcode exports that the pin never loads.
 #            Warning only: upstream has moved on and the pin may be getting stale.
 #
-# Usage: scripts/check-libindexstore.sh [path/to/libIndexStore.dylib]
-# Run `swift package resolve` first so the indexstore-db checkout exists.
+# Usage: scripts/check-libindexstore.sh [--strict] [path/to/libIndexStore.dylib]
+#   --strict             treat the ceiling warning as a failure (scheduled job)
+#   INDEXSTORE_DB_DIR    indexstore-db checkout to check instead of the pinned one
+# Run `swift package resolve` first so the pinned indexstore-db checkout exists.
 set -euo pipefail
 
+strict=false
+if [[ "${1:-}" == "--strict" ]]; then strict=true; shift; fi
+
 root="$(cd "$(dirname "$0")/.." && pwd)"
-def="$root/.build/checkouts/indexstore-db/Sources/IndexStoreDB_Index/indexstore_functions.def"
+def="${INDEXSTORE_DB_DIR:-$root/.build/checkouts/indexstore-db}/Sources/IndexStoreDB_Index/indexstore_functions.def"
 floor="$root/ci/libindexstore-floor.symbols"
 lib="${1:-$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib/libIndexStore.dylib}"
 
@@ -44,7 +49,9 @@ echo "floor OK: $(wc -l <"$tmp/required" | tr -d ' ') required functions all exp
 
 unused="$(comm -13 "$tmp/loaded" "$tmp/current")"
 if [[ -n "$unused" ]]; then
-  warn "libIndexStore at $lib exports functions the pinned indexstore-db does not load; consider bumping the pin: $(echo $unused)"
+  msg="libIndexStore at $lib exports functions the pinned indexstore-db does not load; consider bumping the pin: $(echo $unused)"
+  if $strict; then fail "$msg"; fi
+  warn "$msg"
 else
   echo "ceiling OK: pinned indexstore-db covers every function exported by $lib"
 fi
