@@ -30,7 +30,7 @@ cd swift-index-store-mcp
 swift build -c release
 ```
 
-The binary is at `.build/release/IndexStoreMCP` inside the cloned directory.
+The binary is at `.build/release/index-store-mcp` inside the cloned directory.
 
 ### Configure your MCP client
 
@@ -38,7 +38,7 @@ The binary is at `.build/release/IndexStoreMCP` inside the cloned directory.
 <summary><strong>Claude Code</strong></summary>
 
 ```sh
-claude mcp add index-store-mcp /path/to/swift-index-store-mcp/.build/release/IndexStoreMCP
+claude mcp add index-store-mcp /path/to/swift-index-store-mcp/.build/release/index-store-mcp
 ```
 
 </details>
@@ -52,7 +52,7 @@ Add to your MCP configuration file:
 {
   "mcpServers": {
     "index-store-mcp": {
-      "command": "/path/to/swift-index-store-mcp/.build/release/IndexStoreMCP"
+      "command": "/path/to/swift-index-store-mcp/.build/release/index-store-mcp"
     }
   }
 }

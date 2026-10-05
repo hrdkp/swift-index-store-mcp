@@ -27,7 +27,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
             .init(tools: [
                 Tool(
                     name: ToolName.loadIndex.rawValue,
-                    description: "Must be called first before any other tool. Loads the Xcode index for the given project. Only needs to be called once per session. Typical workflow: loadIndex → searchSymbol/searchSymbolPattern → getOccurrences/relatedOccurrences. Call refreshIndex after a build to pick up changes.",
+                    description: "Start here. Loads the Xcode index so the other tools can answer semantic questions about Swift and Objective-C code: definitions, references, callers, protocol conformances, overrides. Must be called once per session before any other tool, with the .xcworkspace, .xcodeproj, or Swift Package directory. The project must have been built in Xcode at least once. Typical workflow: loadIndex → searchSymbol/searchSymbolPattern → getOccurrences/relatedOccurrences. Call refreshIndex after a build to pick up changes.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([
@@ -41,7 +41,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                 ),
                 Tool(
                     name: ToolName.searchSymbol.rawValue,
-                    description: "Use when you know the symbol name. Returns one or more USRs. For types and properties, use the bare name (e.g. MyViewController, isLoading). For methods, you can use either the bare name (e.g. viewDidLoad) or the full signature with labels (e.g. tableView(_:numberOfRowsInSection:)). Falls back to prefix matching if no exact match is found.",
+                    description: "Find a Swift/Objective-C symbol by exact name and get its USR(s). Prefer this over grep to locate where a type, method or property is defined or used: results are real symbols, not text matches in comments or strings. For types and properties, use the bare name (e.g. MyViewController, isLoading). For methods, you can use either the bare name (e.g. viewDidLoad) or the full signature with labels (e.g. tableView(_:numberOfRowsInSection:)). Falls back to prefix matching if no exact match is found. Pass a returned USR to getOccurrences or relatedOccurrences.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([
@@ -63,7 +63,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                 ),
                 Tool(
                     name: ToolName.searchSymbolPattern.rawValue,
-                    description: "Use when searchSymbol returns no results or you only know a partial name. Performs subsequence matching — e.g. 'mvc' matches 'MyViewController'. Results may include matches from dependencies. Use anchorStart/anchorEnd and longer patterns to narrow results.",
+                    description: "Fuzzy symbol search for when searchSymbol returns no results or you only know a partial name. Performs subsequence matching — e.g. 'mvc' matches 'MyViewController'. Results may include dependencies; use anchorStart/anchorEnd and longer patterns to narrow them. Returns USRs for getOccurrences or relatedOccurrences.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([
@@ -101,7 +101,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                 ),
                 Tool(
                     name: ToolName.symbolAtPosition.rawValue,
-                    description: "Use when reading a file and you want the USR of a symbol at a specific position. More precise than searchSymbol when the name is ambiguous (e.g. init). Returns the single closest symbol at or before the given column.",
+                    description: "Get the symbol at a specific file position, including its USR. Use when you are reading a file and need to know what a name refers to, or when searchSymbol is ambiguous (e.g. init, configure, handle). Returns the single closest symbol at or before the given column.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([
@@ -131,7 +131,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                 ),
                 Tool(
                     name: ToolName.getOccurrences.rawValue,
-                    description: "Use after obtaining a USR. Returns every location in the codebase where that symbol is defined, referenced, or called. Use the roles filter to narrow results.",
+                    description: "Find every place a symbol is defined, referenced, or called, given its USR. Prefer this over grepping for the name: it finds usages across the whole codebase without false matches from comments, strings, or similarly named symbols. Use the roles filter (e.g. definition, reference, call) to narrow results, such as listing only callers. Get the USR from searchSymbol, searchSymbolPattern, or symbolAtPosition.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([
@@ -158,7 +158,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                 ),
                 Tool(
                     name: ToolName.relatedOccurrences.rawValue,
-                    description: "Use to find structural relationships: protocol conformances, method overrides, type extensions. Use this before refactoring a protocol or base class to ensure all conforming types and overrides are found.",
+                    description: "Find structural relationships for a symbol by USR: protocol conformances, method overrides, type extensions. Answers \"what will break if I change this?\" — use it before refactoring a protocol, base class, or overridable method so every conforming type and override is found.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([
@@ -185,7 +185,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                 ),
                 Tool(
                     name: ToolName.symbolsInFile.rawValue,
-                    description: "Use to get a structural outline of all symbols defined in a file. Call this before editing a file to understand what it contains, rather than reading and parsing the source text.",
+                    description: "Get a structural outline of a file — symbol names, kinds, USRs, and line numbers — without reading the source. Call this before opening a large Swift/Objective-C file to find the part you need, and to keep your context small.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([
@@ -212,7 +212,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                 ),
                 Tool(
                     name: ToolName.refreshIndex.rawValue,
-                    description: "Polls the index store for changes written since the last scan and updates the in-memory database. Call this after a build completes or whenever query results may be stale due to recent source changes.",
+                    description: "Polls the index store for changes written since the last scan and updates the in-memory database. Call this after building in Xcode (or xcodebuild) completes, or whenever query results look stale after source changes.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([:]),
