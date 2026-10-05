@@ -20,7 +20,7 @@ func handleSymbolsInFile(_ args: [String: Value], indexStore: IndexStore) async 
     let includeSystem = args["includeSystem"]?.boolValue ?? false
     let includeStale = args["includeStale"]?.boolValue ?? false
     
-    let all = database.symbolOccurrences(inFilePath: file)
+    let all = database.symbolOccurrences(inFilePath: file).uniqued()
     let roleFiltered = all.filter { !$0.roles.intersection(roles).isEmpty }
     let nonSystem = roleFiltered.filter { includeSystem || !$0.location.isSystem }
     let results = nonSystem.filter { includeStale || !$0.isStale(in: database) }

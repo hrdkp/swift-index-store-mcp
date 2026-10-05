@@ -391,6 +391,45 @@ struct StalenessTests {
     }
 }
 
+// MARK: - compactJSON
+
+@Suite("compactJSON")
+struct CompactJSONTests {
+    @Test func oneSortedObjectPerLineWithUnescapedSlashes() throws {
+        let output = try compactJSON([["name": "Foo", "file": "/a/b.swift"], ["name": "Bar", "file": "/c.swift"]])
+        #expect(output == "[\n{\"file\":\"/a/b.swift\",\"name\":\"Foo\"},\n{\"file\":\"/c.swift\",\"name\":\"Bar\"}\n]")
+    }
+    
+    @Test func emptyArrayAndObject() throws {
+        #expect(try compactJSON([Any]()) == "[]")
+        #expect(try compactJSON(["line": 3, "kind": "class"]) == "{\"kind\":\"class\",\"line\":3}")
+    }
+}
+
+// MARK: - occurrence de-duplication
+
+@Suite("uniqued occurrences")
+struct UniquedOccurrenceTests {
+    private func occurrence(line: Int, module: String = "App", timestamp: Double = 0) -> SymbolOccurrence {
+        SymbolOccurrence(
+            symbol: Symbol(usr: "s:3App3FooC", name: "Foo", kind: .class, language: .swift),
+            location: SymbolLocation(path: "/src/Foo.swift", timestamp: Date(timeIntervalSince1970: timestamp), moduleName: module, line: line, utf8Column: 7),
+            roles: .reference,
+            symbolProvider: .swift
+        )
+    }
+    
+    @Test func dropsCopiesFromOtherUnits() {
+        let occurrences = [
+            occurrence(line: 1),
+            occurrence(line: 1, module: "AppTests", timestamp: 5),
+            occurrence(line: 2),
+            occurrence(line: 1, timestamp: 9),
+        ]
+        #expect(occurrences.uniqued().map(\.location.line) == [1, 2])
+    }
+}
+
 // MARK: - stale-count note in formatOccurrenceJSON
 
 @Suite("formatOccurrenceJSON stale note")

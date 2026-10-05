@@ -14,7 +14,7 @@ func handleSearchSymbol(_ args: [String: Value], indexStore: IndexStore) async t
     let includeSystem = args["includeSystem"]?.boolValue ?? false
     let includeStale = args["includeStale"]?.boolValue ?? false
     
-    var all = database.canonicalOccurrences(ofName: name)
+    var all = database.canonicalOccurrences(ofName: name).uniqued()
     var nonSystem = all.filter { includeSystem || !$0.location.isSystem }
     var results = nonSystem.filter { includeStale || !$0.isStale(in: database) }
     
@@ -27,7 +27,7 @@ func handleSearchSymbol(_ args: [String: Value], indexStore: IndexStore) async t
             anchorEnd: false,
             subsequence: false,
             ignoreCase: false
-        )
+        ).uniqued()
         nonSystem = all.filter { includeSystem || !$0.location.isSystem }
         results = nonSystem.filter { includeStale || !$0.isStale(in: database) }
         

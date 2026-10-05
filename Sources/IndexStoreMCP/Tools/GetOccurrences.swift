@@ -20,7 +20,7 @@ func handleGetOccurrences(_ args: [String: Value], indexStore: IndexStore) async
     let includeSystem = args["includeSystem"]?.boolValue ?? false
     let includeStale = args["includeStale"]?.boolValue ?? false
     
-    let all = database.occurrences(ofUSR: usr, roles: roles)
+    let all = database.occurrences(ofUSR: usr, roles: roles).uniqued()
     let nonSystem = all.filter { includeSystem || !$0.location.isSystem }
     let results = nonSystem
         .filter { includeStale || !$0.isStale(in: database) }

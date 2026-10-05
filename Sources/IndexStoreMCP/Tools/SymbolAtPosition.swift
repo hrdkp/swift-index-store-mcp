@@ -47,6 +47,5 @@ func handleSymbolAtPosition(_ args: [String: Value], indexStore: IndexStore) asy
         dict["subKind"] = String(describing: match.symbol.subKind)
     }
     
-    let data = try JSONSerialization.data(withJSONObject: dict, options: .prettyPrinted)
-    return .success(String(data: data, encoding: .utf8) ?? "{}")
+    return .success(try compactJSON(dict))
 }
