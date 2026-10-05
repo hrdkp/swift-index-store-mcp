@@ -50,7 +50,18 @@ func handleLoadIndex(_ args: [String: Value], indexStore: IndexStore) async thro
         try fm.createDirectory(at: dbURL, withIntermediateDirectories: true)
         
         let libPath = try await indexStoreLibraryPath()
-        let library = try IndexStoreLibrary(dylibPath: libPath)
+        let library: IndexStoreLibrary
+        do {
+            library = try IndexStoreLibrary(dylibPath: libPath)
+        } catch {
+            // A missing required function means the selected Xcode is older than
+            // the indexstore-db revision this binary was built against supports.
+            throw LoadIndexError.libraryIncompatible(
+                "libIndexStore at \(libPath) is not compatible: \(error)\n"
+                + "\(BuildInfo.name) requires Xcode \(BuildInfo.minimumXcode) or later. "
+                + "Select a newer Xcode with `xcode-select -s` or set DEVELOPER_DIR in the MCP server config."
+            )
+        }
         
         let db = try IndexStoreDB(
             storePath: storeURL.path,
@@ -62,7 +73,12 @@ func handleLoadIndex(_ args: [String: Value], indexStore: IndexStore) async thro
         
         await indexStore.setDatabase(db, workspacePath: workspacePath)
         
-        return .success("Index loaded: \(storeURL.path)")
+        // Report the reader so a stale xcode-select (older reader than the
+        // Xcode that wrote the store) is visible to the user and the agent.
+        return .success("""
+            Index loaded: \(storeURL.path)
+            libIndexStore: \(libPath) (API \(library.version.major * 10000 + library.version.minor), format \(library.formatVersion))
+            """)
     } catch {
         return .failure("Failed to load index: \(error)")
     }
@@ -194,10 +210,12 @@ private func xcodeDevPath() async -> String? {
 
 private enum LoadIndexError: Error, CustomStringConvertible {
     case libraryNotFound(String)
+    case libraryIncompatible(String)
     
     var description: String {
         switch self {
         case .libraryNotFound(let msg): return msg
+        case .libraryIncompatible(let msg): return msg
         }
     }
 }

@@ -11,7 +11,7 @@ struct Command: AsyncParsableCommand {
         launched by an MCP client, not used interactively.
 
         Requirements:
-          - macOS with Xcode installed (provides libIndexStore.dylib).
+          - macOS with Xcode 16 or later selected (provides libIndexStore.dylib).
           - The target project must have been built in Xcode at least once, so an
             index store exists in DerivedData. The server checks the custom location
             from Xcode preferences, a DerivedData folder next to the workspace, and

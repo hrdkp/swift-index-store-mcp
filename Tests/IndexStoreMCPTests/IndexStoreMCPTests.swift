@@ -63,6 +63,25 @@ struct LoadIndexTests {
         )
         #expect(!result.isFailure)
         #expect(result.text.contains("Index loaded"))
+        #expect(result.text.contains("libIndexStore: "))
+    }
+    
+    /// Ceiling check: a compiler newer than the pinned indexstore-db can record
+    /// symbol kinds the pin doesn't know, which surface as `.unknown`. CI runs this
+    /// on the newest Xcode, so a failure means the pin needs bumping.
+    @Test func noUnknownSymbolKinds() async throws {
+        let store = try await loadedIndexStore()
+        let database = try #require(await store.database)
+        let sources = try #require(FileManager.default.enumerator(atPath: "\(workspacePath)/Sources"))
+        let files = sources.compactMap { $0 as? String }
+            .filter { $0.hasSuffix(".swift") }
+            .map { "\(workspacePath)/Sources/\($0)" }
+        #expect(!files.isEmpty)
+        
+        let occurrences = files.flatMap { database.symbolOccurrences(inFilePath: $0) }
+        #expect(!occurrences.isEmpty, "no symbols indexed; was the package built with xcodebuild?")
+        let unknown = occurrences.filter { $0.symbol.kind == .unknown }
+        #expect(unknown.isEmpty, "unknown symbol kinds: \(unknown.map { "\($0.symbol.name) at \($0.location)" })")
     }
     
     @Test func idempotentForSameWorkspace() async throws {
