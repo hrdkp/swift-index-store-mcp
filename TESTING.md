@@ -34,25 +34,56 @@ found" error.
 
 The GitHub Actions workflow (`.github/workflows/test.yml`) runs on every push to
 `main` and on pull requests. It uses a macOS runner with Xcode pre-installed and runs
-`xcodebuild build` before `swift test` to generate the index store.
+`xcodebuild build` before `swift test` to generate the index store, then checks
+libIndexStore compatibility, builds the release binary, and smoke-tests it.
 
 The key steps are:
 
 ```sh
 xcodebuild build -scheme IndexStoreMCP -destination 'platform=macOS' -quiet
 swift test
+scripts/check-libindexstore.sh
+scripts/smoke-test.sh "$(swift build -c release --show-bin-path)/index-store-mcp"
 ```
 
 ## What the tests cover
 
-| Suite              | Tests | What it verifies                                          |
-|--------------------|-------|-----------------------------------------------------------|
-| loadIndex          | 5     | Success, idempotency, workspace rejection, path validation|
-| searchSymbol       | 3     | Known symbol lookup, unknown symbol message, guard check  |
-| symbolAtPosition   | 4     | Exact match, column snapping, empty line, arg validation  |
-| symbolsInFile      | 1     | Structural outline of a known file                        |
-| getOccurrences     | 3     | Known USR, bogus USR, invalid role rejection              |
-| IndexStore actor   | 3     | Reserve/load/end lifecycle, concurrent load blocking      |
+| Suite                         | Tests | What it verifies                                                        |
+|-------------------------------|-------|-------------------------------------------------------------------------|
+| loadIndex                     | 6     | Success, reader reporting, no `.unknown` symbol kinds, idempotency, workspace and path validation |
+| searchSymbol                  | 4     | Known symbol lookup, unknown symbol message, prefix fallback, guard check |
+| symbolAtPosition              | 4     | Exact match, column snapping, empty line, arg validation                |
+| symbolsInFile                 | 1     | Structural outline of a known file                                      |
+| getOccurrences                | 3     | Known USR, bogus USR, invalid role rejection                            |
+| IndexStore actor              | 3     | Reserve/load/end lifecycle, concurrent load blocking                    |
+| staleness checks              | 6     | Orphaned and out-of-date detection for deleted and edited files         |
+| formatOccurrenceJSON stale note | 3   | Notes and counts for excluded stale and system results                  |
+
+`noUnknownSymbolKinds` is a ceiling check: when CI's Xcode is newer than the pinned
+indexstore-db understands, symbols come back as `.unknown` and the test fails.
+
+## libIndexStore compatibility checks
+
+The binary loads `libIndexStore.dylib` from the user's selected Xcode at runtime, so
+compatibility depends on the pinned indexstore-db revision, not on the macOS version
+CI runs on. `scripts/check-libindexstore.sh` checks two things:
+
+- **Floor (fails):** every function the pinned indexstore-db marks required is
+  exported by the oldest supported Xcode, recorded in `ci/libindexstore-floor.symbols`.
+- **Ceiling (warns):** the selected Xcode exports no functions the pin doesn't load.
+  If it does, upstream has moved on and the pin may be getting stale.
+
+It runs in `test.yml` and in the release workflow. `libindexstore-compat.yml` runs it
+weekly against every Xcode on the runner image and against upstream indexstore-db
+`main`, failing on either kind of change.
+
+When bumping the indexstore-db pin, run the script locally. When raising the minimum
+Xcode, update `BuildInfo.minimumXcode` and recapture the snapshot from the oldest point
+release of that Xcode:
+
+```sh
+scripts/capture-libindexstore-floor.sh /Applications/Xcode-16.0.app
+```
 
 ## Adding new tests
 
