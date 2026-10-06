@@ -8,6 +8,8 @@ enum AgentInstructions {
     symbol navigation: finding definitions, references and callers, protocol
     conformances, overrides, extensions, and file outlines. Lookups are exact (by USR),
     so there are no false matches from comments, strings or similarly named symbols.
+    The index also covers the project's Swift package dependencies, whose sources live
+    in DerivedData rather than the repo, so use it to navigate into them too.
 
     Workflow:
     1. Call `loadIndex` once per session with the .xcworkspace, .xcodeproj, or package directory.
